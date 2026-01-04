@@ -2,9 +2,10 @@
 Celery tasks for environmental report generation.
 """
 from celery import shared_task
-import logging
+from celery.utils.log import get_task_logger
+from datetime import date, timedelta
 
-logger = logging.getLogger(__name__)
+logger = get_task_logger(__name__)
 
 
 @shared_task
@@ -126,3 +127,79 @@ def generar_excel_informe(informe, actividades, registros):
     buffer.seek(0)
 
     return buffer.getvalue()
+
+
+@shared_task
+def verificar_permisos_vencidos():
+    """
+    Check for expired or soon-to-expire easement permits.
+    Runs daily to alert about permits requiring attention.
+    """
+    from .models import PermisoServidumbre
+
+    hoy = date.today()
+    fecha_limite = hoy + timedelta(days=30)
+
+    # Permits expiring in 30 days
+    por_vencer = PermisoServidumbre.objects.filter(
+        fecha_vencimiento__lte=fecha_limite,
+        fecha_vencimiento__gte=hoy,
+        estado='VIGENTE'
+    ).select_related('linea')
+
+    # Already expired
+    vencidos = PermisoServidumbre.objects.filter(
+        fecha_vencimiento__lt=hoy,
+        estado='VIGENTE'
+    ).select_related('linea')
+
+    # Update status of expired permits
+    for permiso in vencidos:
+        permiso.estado = 'VENCIDO'
+        permiso.save(update_fields=['estado'])
+
+    alertas = {
+        'por_vencer': [
+            {
+                'permiso_id': str(p.id),
+                'linea': p.linea.codigo,
+                'propietario': p.nombre_propietario,
+                'dias_restantes': (p.fecha_vencimiento - hoy).days
+            }
+            for p in por_vencer
+        ],
+        'vencidos': [str(p.id) for p in vencidos]
+    }
+
+    if por_vencer.exists() or vencidos.exists():
+        logger.warning(f"Permit alerts: {len(alertas['por_vencer'])} expiring, {len(alertas['vencidos'])} expired")
+
+    return alertas
+
+
+@shared_task
+def generar_informes_periodo(anio: int, mes: int):
+    """
+    Generate environmental reports for all active lines.
+    Runs on the 1st of each month.
+    """
+    from apps.lineas.models import Linea
+    from .models import InformeAmbiental
+
+    lineas = Linea.objects.filter(activa=True)
+    generados = []
+
+    for linea in lineas:
+        informe, created = InformeAmbiental.objects.get_or_create(
+            linea=linea,
+            periodo_anio=anio,
+            periodo_mes=mes,
+            defaults={'estado': 'PENDIENTE'}
+        )
+
+        if created:
+            generar_informe_ambiental.delay(str(informe.id))
+            generados.append(linea.codigo)
+
+    logger.info(f"Queued {len(generados)} environmental reports for {mes}/{anio}")
+    return generados
