@@ -1,0 +1,25 @@
+# Local development requirements
+-r base.txt
+
+# Debug
+django-debug-toolbar>=4.2
+django-silk>=5.1
+ipython>=8.20
+
+# Testing
+pytest>=8.0
+pytest-django>=4.7
+pytest-cov>=4.1
+pytest-asyncio>=0.23
+factory-boy>=3.3
+faker>=22.0
+
+# Code Quality
+ruff>=0.1.14
+mypy>=1.8
+django-stubs>=4.2
+pre-commit>=3.6
+
+# Type stubs
+types-redis>=4.6
+types-Pillow>=10.2

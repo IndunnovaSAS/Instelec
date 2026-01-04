@@ -1,0 +1,86 @@
+# Docker Compose for local development
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile
+    ports:
+      - "8000:8080"
+    volumes:
+      - ../..:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.local
+      - DEBUG=True
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - DB_NAME=transmaint
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    command: python manage.py runserver 0.0.0.0:8080
+
+  db:
+    image: postgis/postgis:17-3.4
+    environment:
+      POSTGRES_DB: transmaint
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  celery:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.celery
+    volumes:
+      - ../..:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.local
+      - DB_NAME=transmaint
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    command: celery -A config worker -l info -Q default,high_priority,reports
+
+  celery-beat:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.celery
+    volumes:
+      - ../..:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.local
+      - DB_NAME=transmaint
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+volumes:
+  postgres_data:
+  redis_data:

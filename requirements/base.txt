@@ -1,0 +1,53 @@
+# Django Core
+Django>=5.1,<5.2
+psycopg[binary]>=3.1
+python-decouple>=3.8
+
+# Django Extensions
+django-extensions>=3.2
+django-filter>=23.5
+django-widget-tweaks>=1.5
+
+# GeoDjango
+GDAL>=3.6
+
+# REST API
+djangorestframework>=3.15
+django-ninja>=1.0
+drf-spectacular>=0.27
+
+# JWT Authentication
+djangorestframework-simplejwt>=5.3
+
+# Security
+django-axes>=6.3
+django-cors-headers>=4.3
+django-csp>=3.8
+
+# Async Tasks
+celery>=5.3
+django-celery-beat>=2.5
+django-celery-results>=2.5
+redis>=5.0
+
+# Cache
+django-cachalot>=2.6
+django-redis>=5.4
+
+# Storage
+django-storages[google]>=1.14
+google-cloud-storage>=2.14
+
+# Reports
+WeasyPrint>=60.0
+openpyxl>=3.1
+pandas>=2.1
+
+# Image Processing
+Pillow>=10.2
+
+# Static Files
+whitenoise>=6.6
+
+# Utilities
+python-dateutil>=2.8
