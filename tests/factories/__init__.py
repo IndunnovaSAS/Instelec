@@ -33,6 +33,34 @@ from tests.factories.campo import (
     EvidenciaDuranteFactory,
     EvidenciaDespuesFactory,
 )
+from tests.factories.ambiental import (
+    InformeAmbientalFactory,
+    InformeAmbientalAprobadoFactory,
+    PermisoServidumbreFactory,
+    PermisoServidumbreVencidoFactory,
+)
+from tests.factories.financiero import (
+    CostoRecursoFactory,
+    CostoDiaHombreFactory,
+    CostoVehiculoFactory,
+    PresupuestoFactory,
+    PresupuestoAprobadoFactory,
+    PresupuestoEnEjecucionFactory,
+    EjecucionCostoFactory,
+    CicloFacturacionFactory,
+    CicloFacturacionPagadoFactory,
+)
+from tests.factories.indicadores import (
+    IndicadorFactory,
+    IndicadorGestionFactory,
+    IndicadorEjecucionFactory,
+    IndicadorSeguridadFactory,
+    MedicionIndicadorFactory,
+    MedicionCumpleMeta,
+    MedicionEnAlerta,
+    ActaSeguimientoFactory,
+    ActaSeguimientoFirmadaFactory,
+)
 
 __all__ = [
     # Usuarios
@@ -63,4 +91,29 @@ __all__ = [
     "EvidenciaAntesFactory",
     "EvidenciaDuranteFactory",
     "EvidenciaDespuesFactory",
+    # Ambiental
+    "InformeAmbientalFactory",
+    "InformeAmbientalAprobadoFactory",
+    "PermisoServidumbreFactory",
+    "PermisoServidumbreVencidoFactory",
+    # Financiero
+    "CostoRecursoFactory",
+    "CostoDiaHombreFactory",
+    "CostoVehiculoFactory",
+    "PresupuestoFactory",
+    "PresupuestoAprobadoFactory",
+    "PresupuestoEnEjecucionFactory",
+    "EjecucionCostoFactory",
+    "CicloFacturacionFactory",
+    "CicloFacturacionPagadoFactory",
+    # Indicadores
+    "IndicadorFactory",
+    "IndicadorGestionFactory",
+    "IndicadorEjecucionFactory",
+    "IndicadorSeguridadFactory",
+    "MedicionIndicadorFactory",
+    "MedicionCumpleMeta",
+    "MedicionEnAlerta",
+    "ActaSeguimientoFactory",
+    "ActaSeguimientoFirmadaFactory",
 ]
