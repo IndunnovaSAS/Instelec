@@ -50,8 +50,14 @@ def procesar_evidencia(self, evidencia_id: str):
         logger.info(f"Evidence {evidencia_id} processed successfully")
         return {'status': 'ok', 'validacion': validacion}
 
-    except Exception as e:
-        logger.error(f"Error processing evidence {evidencia_id}: {e}")
+    except Evidencia.DoesNotExist:
+        logger.error(f"Evidence {evidencia_id} not found")
+        return {'status': 'error', 'message': 'Evidence not found'}
+    except (IOError, OSError) as e:
+        logger.error(f"I/O error processing evidence {evidencia_id}: {e}")
+        self.retry(exc=e)
+    except (ValueError, TypeError) as e:
+        logger.error(f"Data error processing evidence {evidencia_id}: {e}")
         self.retry(exc=e)
 
 

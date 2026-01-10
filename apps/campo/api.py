@@ -1,16 +1,26 @@
 """
 API endpoints for field records (Django Ninja).
 """
+import logging
+
 from ninja import Router, Schema, File, UploadedFile
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
+from django.db import DatabaseError, IntegrityError
 
+from django.core.exceptions import ValidationError
+from ninja.errors import HttpError
+
+from apps.api.auth import JWTAuth
+from apps.api.ratelimit import ratelimit_api, ratelimit_upload
 from .models import RegistroCampo, Evidencia
 from .tasks import procesar_evidencia
+from .validators import validate_evidence_mime_type, validate_signature_mime_type
 
-router = Router()
+logger = logging.getLogger(__name__)
+router = Router(auth=JWTAuth())
 
 
 class RegistroIn(Schema):
@@ -58,9 +68,18 @@ class SyncResultOut(Schema):
     message: str = ""
 
 
-@router.get('/registros', response=List[RegistroOut])
+class ErrorOut(Schema):
+    detail: str
+
+
+@router.get('/registros', response={200: List[RegistroOut], 429: ErrorOut})
+@ratelimit_api
 def listar_registros(request, actividad_id: UUID = None):
-    """List field records, optionally filtered by activity."""
+    """
+    List field records, optionally filtered by activity.
+
+    Rate limited: 100 requests per minute per user.
+    """
     qs = RegistroCampo.objects.all()
 
     if actividad_id:
@@ -80,9 +99,14 @@ def listar_registros(request, actividad_id: UUID = None):
     ]
 
 
-@router.get('/registros/{registro_id}', response=RegistroDetailOut)
+@router.get('/registros/{registro_id}', response={200: RegistroDetailOut, 429: ErrorOut})
+@ratelimit_api
 def obtener_registro(request, registro_id: UUID):
-    """Get field record details."""
+    """
+    Get field record details.
+
+    Rate limited: 100 requests per minute per user.
+    """
     registro = RegistroCampo.objects.prefetch_related('evidencias').get(id=registro_id)
 
     evidencias = [
@@ -113,11 +137,14 @@ def obtener_registro(request, registro_id: UUID):
     )
 
 
-@router.post('/registros/sync', response=List[SyncResultOut])
+@router.post('/registros/sync', response={200: List[SyncResultOut], 429: ErrorOut})
+@ratelimit_api
 def sincronizar_registros(request, data: RegistroSyncIn):
     """
     Sync multiple field records from mobile app.
     Used when device comes back online.
+
+    Rate limited: 100 requests per minute per user.
     """
     from django.utils import timezone
     from apps.actividades.models import Actividad
@@ -155,17 +182,26 @@ def sincronizar_registros(request, data: RegistroSyncIn):
                 status='error',
                 message='Registro no encontrado'
             ))
-        except Exception as e:
+        except (DatabaseError, IntegrityError) as e:
+            logger.error(f"Database error syncing record {reg.actividad_id}: {e}")
             resultados.append(SyncResultOut(
                 id=str(reg.actividad_id),
                 status='error',
-                message=str(e)
+                message=f'Error de base de datos: {str(e)[:100]}'
+            ))
+        except (ValueError, TypeError, KeyError) as e:
+            logger.warning(f"Data validation error syncing record {reg.actividad_id}: {e}")
+            resultados.append(SyncResultOut(
+                id=str(reg.actividad_id),
+                status='error',
+                message=f'Error de validacion: {str(e)}'
             ))
 
     return resultados
 
 
-@router.post('/evidencias/upload')
+@router.post('/evidencias/upload', response={200: dict, 429: ErrorOut})
+@ratelimit_upload
 def subir_evidencia(
     request,
     registro_id: UUID,
@@ -178,20 +214,46 @@ def subir_evidencia(
     """
     Upload a photo evidence.
     Triggers async processing for thumbnail and AI validation.
+
+    Validates MIME type using magic bytes to ensure file is a valid image
+    (JPEG, PNG, or WebP). Does not rely on file extension.
+
+    Rate limited: 20 requests per minute per user.
     """
     from apps.core.utils import upload_to_gcs
     from django.utils import timezone
 
+    # Read file content for validation
+    file_content = archivo.read()
+
+    # Validate MIME type using magic bytes (security check)
+    try:
+        validate_evidence_mime_type(file_content, archivo.name)
+    except ValidationError as e:
+        logger.warning(
+            f"MIME type validation failed for evidence upload: "
+            f"user={request.auth.id}, file={archivo.name}, error={e.message}"
+        )
+        raise HttpError(400, str(e.message))
+
     registro = RegistroCampo.objects.get(id=registro_id)
 
-    # Generate unique filename
+    # Generate unique filename with validated extension
     import uuid
-    extension = archivo.name.split('.')[-1] if '.' in archivo.name else 'jpg'
+    # Map MIME types to extensions (we know the file is valid at this point)
+    import magic
+    detected_mime = magic.from_buffer(file_content, mime=True)
+    mime_to_ext = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+    }
+    extension = mime_to_ext.get(detected_mime, 'jpg')
     filename = f"{uuid.uuid4()}.{extension}"
     path = f"evidencias/{registro_id}/{tipo}/{filename}"
 
     # Upload to cloud storage
-    url = upload_to_gcs(archivo.read(), path)
+    url = upload_to_gcs(file_content, path)
 
     # Create evidence record
     evidencia = Evidencia.objects.create(
@@ -213,20 +275,41 @@ def subir_evidencia(
     }
 
 
-@router.post('/registros/{registro_id}/firma')
+@router.post('/registros/{registro_id}/firma', response={200: dict, 429: ErrorOut})
+@ratelimit_upload
 def subir_firma(
     request,
     registro_id: UUID,
     archivo: UploadedFile = File(...)
 ):
-    """Upload signature for a field record."""
+    """
+    Upload signature for a field record.
+
+    Validates that the file is a valid PNG image using magic bytes.
+    Signatures must be PNG format (typically with transparency support).
+
+    Rate limited: 20 requests per minute per user.
+    """
     from apps.core.utils import upload_to_gcs
+
+    # Read file content for validation
+    file_content = archivo.read()
+
+    # Validate MIME type - signatures must be PNG
+    try:
+        validate_signature_mime_type(file_content, archivo.name)
+    except ValidationError as e:
+        logger.warning(
+            f"MIME type validation failed for signature upload: "
+            f"user={request.auth.id}, file={archivo.name}, error={e.message}"
+        )
+        raise HttpError(400, str(e.message))
 
     registro = RegistroCampo.objects.get(id=registro_id)
 
-    # Upload signature
+    # Upload signature (always PNG after validation)
     path = f"firmas/{registro_id}/firma.png"
-    url = upload_to_gcs(archivo.read(), path)
+    url = upload_to_gcs(file_content, path)
 
     registro.firma_responsable_url = url
     registro.save(update_fields=['firma_responsable_url', 'updated_at'])

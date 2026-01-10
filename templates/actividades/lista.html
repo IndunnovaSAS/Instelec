@@ -14,8 +14,10 @@
             <button hx-get="{% url 'actividades:crear' %}"
                     hx-target="#modal-container"
                     hx-swap="innerHTML"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                    aria-label="Crear nueva actividad"
+                    type="button">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 Nueva Actividad
@@ -29,12 +31,14 @@
               hx-target="#actividades-container"
               hx-swap="innerHTML"
               hx-trigger="change, submit"
-              class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              class="grid grid-cols-1 md:grid-cols-4 gap-4"
+              role="search"
+              aria-label="Filtros de actividades">
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Línea</label>
-                <select name="linea" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                    <option value="">Todas las líneas</option>
+                <label for="filter-linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linea</label>
+                <select name="linea" id="filter-linea" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    <option value="">Todas las lineas</option>
                     {% for linea in lineas %}
                     <option value="{{ linea.id }}" {% if request.GET.linea == linea.id|stringformat:"s" %}selected{% endif %}>
                         {{ linea.codigo }}
@@ -44,8 +48,8 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
-                <select name="estado" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                <label for="filter-estado" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+                <select name="estado" id="filter-estado" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                     <option value="">Todos</option>
                     <option value="PENDIENTE" {% if request.GET.estado == "PENDIENTE" %}selected{% endif %}>Pendiente</option>
                     <option value="EN_CURSO" {% if request.GET.estado == "EN_CURSO" %}selected{% endif %}>En Curso</option>
@@ -55,8 +59,8 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cuadrilla</label>
-                <select name="cuadrilla" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                <label for="filter-cuadrilla" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cuadrilla</label>
+                <select name="cuadrilla" id="filter-cuadrilla" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                     <option value="">Todas</option>
                     {% for cuadrilla in cuadrillas %}
                     <option value="{{ cuadrilla.id }}" {% if request.GET.cuadrilla == cuadrilla.id|stringformat:"s" %}selected{% endif %}>
@@ -67,15 +71,15 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha</label>
-                <input type="date" name="fecha" value="{{ request.GET.fecha }}"
+                <label for="filter-fecha" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha</label>
+                <input type="date" name="fecha" id="filter-fecha" value="{{ request.GET.fecha }}"
                        class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
             </div>
         </form>
     </div>
 
     <!-- Activities List -->
-    <div id="actividades-container">
+    <div id="actividades-container" role="region" aria-label="Lista de actividades" aria-live="polite">
         {% include "actividades/partials/lista_actividades.html" %}
     </div>
 </div>

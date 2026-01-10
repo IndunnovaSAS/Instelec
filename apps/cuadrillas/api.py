@@ -7,9 +7,10 @@ from uuid import UUID
 from decimal import Decimal
 from datetime import datetime
 
+from apps.api.auth import JWTAuth
 from .models import Cuadrilla, CuadrillaMiembro, TrackingUbicacion
 
-router = Router()
+router = Router(auth=JWTAuth())
 
 
 class MiembroOut(Schema):

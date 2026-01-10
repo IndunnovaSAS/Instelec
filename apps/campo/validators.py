@@ -6,6 +6,7 @@ Validates images for:
 - Metadata (GPS, timestamp)
 - Content requirements (before/during/after)
 - Size and format
+- MIME type validation using magic bytes
 """
 
 import io
@@ -15,10 +16,281 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional, Tuple
 
+import magic
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
+from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# MIME Type Validation with Magic Bytes
+# =============================================================================
+
+class MimeTypeValidator:
+    """
+    Validates file MIME types using magic bytes (file signatures).
+
+    This validator checks the actual file content, not just the extension,
+    to prevent malicious file uploads disguised with fake extensions.
+    """
+
+    # Allowed MIME types for images
+    ALLOWED_IMAGE_TYPES = {
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+    }
+
+    # Allowed MIME types for documents
+    ALLOWED_DOCUMENT_TYPES = {
+        'application/pdf',
+        'application/msword',  # .doc
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  # .docx
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  # .xlsx
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',  # .pptx
+    }
+
+    # Magic bytes signatures for additional verification
+    # These are the first bytes of each file type
+    MAGIC_SIGNATURES = {
+        'image/jpeg': [
+            b'\xff\xd8\xff\xe0',  # JFIF
+            b'\xff\xd8\xff\xe1',  # EXIF
+            b'\xff\xd8\xff\xe2',  # SPIFF
+            b'\xff\xd8\xff\xdb',  # Quantization table
+            b'\xff\xd8\xff\xee',  # Adobe
+        ],
+        'image/png': [
+            b'\x89PNG\r\n\x1a\n',
+        ],
+        'image/webp': [
+            b'RIFF',  # WebP starts with RIFF, followed by file size and WEBP
+        ],
+        'application/pdf': [
+            b'%PDF-',
+        ],
+        'application/msword': [
+            b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1',  # OLE compound document
+        ],
+        'application/vnd.openxmlformats-officedocument': [
+            b'PK\x03\x04',  # ZIP-based (OOXML)
+        ],
+    }
+
+    def __init__(self, file_bytes: bytes, filename: str = ""):
+        """
+        Initialize the validator.
+
+        Args:
+            file_bytes: The raw file content
+            filename: Original filename (used for logging, not for validation)
+        """
+        self.file_bytes = file_bytes
+        self.filename = filename
+        self._detected_mime = None
+
+    @property
+    def detected_mime_type(self) -> str:
+        """Get the detected MIME type using python-magic."""
+        if self._detected_mime is None:
+            try:
+                self._detected_mime = magic.from_buffer(self.file_bytes, mime=True)
+            except Exception as e:
+                logger.error(f"Error detecting MIME type for {self.filename}: {e}")
+                self._detected_mime = 'application/octet-stream'
+        return self._detected_mime
+
+    def _verify_magic_bytes(self, expected_mime: str) -> bool:
+        """
+        Verify the file starts with expected magic bytes.
+
+        This is an additional security layer beyond python-magic.
+        """
+        if expected_mime.startswith('application/vnd.openxmlformats-officedocument'):
+            # All OOXML formats use the same ZIP signature
+            signatures = self.MAGIC_SIGNATURES.get('application/vnd.openxmlformats-officedocument', [])
+        else:
+            signatures = self.MAGIC_SIGNATURES.get(expected_mime, [])
+
+        if not signatures:
+            # No signature defined for this type, rely on python-magic only
+            return True
+
+        # Special handling for WebP (RIFF....WEBP)
+        if expected_mime == 'image/webp':
+            return (
+                self.file_bytes[:4] == b'RIFF' and
+                len(self.file_bytes) >= 12 and
+                self.file_bytes[8:12] == b'WEBP'
+            )
+
+        # Check if file starts with any of the valid signatures
+        for sig in signatures:
+            if self.file_bytes[:len(sig)] == sig:
+                return True
+
+        return False
+
+    def validate_image(self) -> Tuple[bool, str]:
+        """
+        Validate that the file is an allowed image type.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        detected = self.detected_mime_type
+
+        # Check if detected MIME type is allowed
+        if detected not in self.ALLOWED_IMAGE_TYPES:
+            allowed_str = ', '.join(sorted(self.ALLOWED_IMAGE_TYPES))
+            return False, f"Tipo de archivo no permitido: {detected}. Tipos permitidos: {allowed_str}"
+
+        # Verify magic bytes match
+        if not self._verify_magic_bytes(detected):
+            logger.warning(
+                f"Magic bytes mismatch for {self.filename}: "
+                f"detected={detected}, bytes={self.file_bytes[:16].hex()}"
+            )
+            return False, f"El contenido del archivo no coincide con el tipo declarado ({detected})"
+
+        return True, ""
+
+    def validate_document(self) -> Tuple[bool, str]:
+        """
+        Validate that the file is an allowed document type.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        detected = self.detected_mime_type
+
+        # Check if detected MIME type is allowed
+        if detected not in self.ALLOWED_DOCUMENT_TYPES:
+            allowed_str = ', '.join(sorted(self.ALLOWED_DOCUMENT_TYPES))
+            return False, f"Tipo de documento no permitido: {detected}. Tipos permitidos: {allowed_str}"
+
+        # Verify magic bytes match
+        if not self._verify_magic_bytes(detected):
+            logger.warning(
+                f"Magic bytes mismatch for {self.filename}: "
+                f"detected={detected}, bytes={self.file_bytes[:16].hex()}"
+            )
+            return False, f"El contenido del archivo no coincide con el tipo declarado ({detected})"
+
+        return True, ""
+
+    def validate_image_or_document(self) -> Tuple[bool, str]:
+        """
+        Validate that the file is either an allowed image or document type.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        detected = self.detected_mime_type
+
+        all_allowed = self.ALLOWED_IMAGE_TYPES | self.ALLOWED_DOCUMENT_TYPES
+
+        if detected not in all_allowed:
+            return False, f"Tipo de archivo no permitido: {detected}"
+
+        if not self._verify_magic_bytes(detected):
+            logger.warning(
+                f"Magic bytes mismatch for {self.filename}: "
+                f"detected={detected}, bytes={self.file_bytes[:16].hex()}"
+            )
+            return False, f"El contenido del archivo no coincide con el tipo declarado ({detected})"
+
+        return True, ""
+
+
+def validate_image_mime_type(file_bytes: bytes, filename: str = "") -> None:
+    """
+    Django validator function for image uploads.
+
+    Raises ValidationError if the file is not a valid image type.
+
+    Args:
+        file_bytes: The raw file content
+        filename: Original filename for logging
+
+    Raises:
+        ValidationError: If validation fails
+    """
+    validator = MimeTypeValidator(file_bytes, filename)
+    is_valid, error_message = validator.validate_image()
+
+    if not is_valid:
+        raise ValidationError(error_message)
+
+
+def validate_document_mime_type(file_bytes: bytes, filename: str = "") -> None:
+    """
+    Django validator function for document uploads.
+
+    Raises ValidationError if the file is not a valid document type.
+
+    Args:
+        file_bytes: The raw file content
+        filename: Original filename for logging
+
+    Raises:
+        ValidationError: If validation fails
+    """
+    validator = MimeTypeValidator(file_bytes, filename)
+    is_valid, error_message = validator.validate_document()
+
+    if not is_valid:
+        raise ValidationError(error_message)
+
+
+def validate_evidence_mime_type(file_bytes: bytes, filename: str = "") -> None:
+    """
+    Django validator function for evidence uploads (images only).
+
+    This is specifically for field evidence photos which must be images.
+
+    Args:
+        file_bytes: The raw file content
+        filename: Original filename for logging
+
+    Raises:
+        ValidationError: If validation fails
+    """
+    validator = MimeTypeValidator(file_bytes, filename)
+    is_valid, error_message = validator.validate_image()
+
+    if not is_valid:
+        raise ValidationError(error_message)
+
+
+def validate_signature_mime_type(file_bytes: bytes, filename: str = "") -> None:
+    """
+    Django validator function for signature uploads.
+
+    Signatures must be PNG images (typically with transparency).
+
+    Args:
+        file_bytes: The raw file content
+        filename: Original filename for logging
+
+    Raises:
+        ValidationError: If validation fails
+    """
+    validator = MimeTypeValidator(file_bytes, filename)
+    detected = validator.detected_mime_type
+
+    # Signatures should be PNG
+    if detected != 'image/png':
+        raise ValidationError(
+            f"Las firmas deben ser imagenes PNG. Tipo detectado: {detected}"
+        )
+
+    if not validator._verify_magic_bytes('image/png'):
+        raise ValidationError(
+            "El contenido del archivo no es una imagen PNG valida"
+        )
 
 
 @dataclass
@@ -78,7 +350,8 @@ class PhotoValidator:
 
         try:
             self.image = Image.open(io.BytesIO(self.image_bytes))
-        except Exception as e:
+        except (IOError, OSError) as e:
+            logger.warning(f"Failed to open image: {e}")
             return ValidationResult(
                 is_valid=False,
                 score=0.0,
@@ -235,8 +508,8 @@ class PhotoValidator:
                 elif tag == 'Model':
                     self.metadata['camera_model'] = value
 
-        except Exception as e:
-            logger.warning(f"Error extracting EXIF: {e}")
+        except (AttributeError, KeyError, TypeError) as e:
+            logger.warning(f"Error extracting EXIF metadata: {e}")
             self.warnings.append("Could not extract EXIF metadata")
 
     def _get_gps_coordinates(self, gps_info: dict) -> Tuple[Optional[float], Optional[float]]:
@@ -261,7 +534,7 @@ class PhotoValidator:
 
             return lat_decimal, lon_decimal
 
-        except Exception:
+        except (KeyError, TypeError, ValueError, ZeroDivisionError):
             return None, None
 
     def _convert_to_degrees(self, value) -> float:

@@ -3,6 +3,7 @@ Models for KPIs and SLA tracking.
 """
 from django.db import models
 from apps.core.models import BaseModel
+from apps.core.validators import resumen_indicadores_validator
 
 
 class Indicador(BaseModel):
@@ -174,7 +175,8 @@ class ActaSeguimiento(BaseModel):
     resumen_indicadores = models.JSONField(
         'Resumen de indicadores',
         default=dict,
-        blank=True
+        blank=True,
+        validators=[resumen_indicadores_validator]
     )
     compromisos = models.TextField('Compromisos', blank=True)
     observaciones = models.TextField('Observaciones', blank=True)

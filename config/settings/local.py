@@ -7,8 +7,16 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
-# CORS - Allow all in development
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS - Specific origins only (even in development for security)
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://localhost:5173',  # Vite default
+    'http://127.0.0.1:5173',
+]
 
 # Debug toolbar
 INSTALLED_APPS += ['debug_toolbar', 'django_extensions']

@@ -67,7 +67,7 @@ echo ""
 echo "Creating Cloud SQL instance..."
 gcloud sql instances create "$DB_INSTANCE_NAME" \
     --database-version=POSTGRES_15 \
-    --tier=db-f1-micro \
+    --tier=db-n1-standard-2 \
     --region="$REGION" \
     --storage-auto-increase \
     --backup-start-time=03:00 \
@@ -84,7 +84,7 @@ gcloud sql databases create transmaint \
 echo ""
 echo "Creating Redis instance (Memorystore)..."
 gcloud redis instances create "$REDIS_INSTANCE_NAME" \
-    --size=1 \
+    --size=5 \
     --region="$REGION" \
     --redis-version=redis_7_0 \
     2>/dev/null || echo "Redis instance already exists or creation in progress."

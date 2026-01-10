@@ -54,6 +54,8 @@
                x-transition:leave="transition ease-in duration-200"
                x-transition:leave-start="translate-x-0"
                x-transition:leave-end="-translate-x-full"
+               role="complementary"
+               aria-label="Barra lateral de navegacion"
                class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg lg:relative lg:translate-x-0">
             {% include "components/sidebar.html" %}
         </aside>
@@ -66,19 +68,21 @@
             </header>
 
             <!-- Page content -->
-            <main class="flex-1 overflow-y-auto p-6" id="main-content">
+            <main class="flex-1 overflow-y-auto p-6" id="main-content" role="main" aria-label="Contenido principal">
                 <!-- Breadcrumb -->
                 {% block breadcrumb %}{% endblock %}
 
                 <!-- Flash messages -->
                 {% if messages %}
-                <div class="mb-4 space-y-2">
+                <div class="mb-4 space-y-2" role="region" aria-label="Mensajes del sistema">
                     {% for message in messages %}
                     <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+                         role="{% if message.tags == 'error' %}alert{% else %}status{% endif %}"
+                         aria-live="{% if message.tags == 'error' %}assertive{% else %}polite{% endif %}"
                          class="p-4 rounded-lg {% if message.tags == 'error' %}bg-red-100 text-red-700{% elif message.tags == 'success' %}bg-green-100 text-green-700{% else %}bg-blue-100 text-blue-700{% endif %}">
                         <div class="flex justify-between items-center">
                             <span>{{ message }}</span>
-                            <button @click="show = false" class="text-lg">&times;</button>
+                            <button @click="show = false" class="text-lg" aria-label="Cerrar mensaje" type="button">&times;</button>
                         </div>
                     </div>
                     {% endfor %}
@@ -92,19 +96,19 @@
     </div>
 
     <!-- Toast container -->
-    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2" role="region" aria-label="Notificaciones" aria-live="polite"></div>
 
     <!-- Modal container -->
     <div id="modal-container"></div>
 
     <!-- Loading overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center" role="dialog" aria-modal="true" aria-label="Cargando contenido">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-4">
-            <svg class="animate-spin h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24">
+            <svg class="animate-spin h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
             </svg>
-            <span>Cargando...</span>
+            <span role="status" aria-live="polite">Cargando...</span>
         </div>
     </div>
 

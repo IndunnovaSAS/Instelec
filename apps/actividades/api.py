@@ -7,9 +7,10 @@ from uuid import UUID
 from datetime import date, time
 from decimal import Decimal
 
+from apps.api.auth import JWTAuth
 from .models import Actividad, TipoActividad
 
-router = Router()
+router = Router(auth=JWTAuth())
 
 
 class TipoActividadOut(Schema):

@@ -18,7 +18,7 @@ spec:
         run.googleapis.com/vpc-access-egress: private-ranges-only
         run.googleapis.com/cloudsql-instances: ${PROJECT_ID}:${REGION}:transmaint-db
     spec:
-      parallelism: 1
+      parallelism: 5
       taskCount: 1
       template:
         spec:

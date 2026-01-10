@@ -11,21 +11,21 @@
     <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4" aria-hidden="true">
+                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
             </div>
             <h1 class="text-2xl font-bold text-gray-900">TransMaint</h1>
-            <p class="text-gray-600 mt-2">Sistema de Gestión de Mantenimiento</p>
+            <p class="text-gray-600 mt-2">Sistema de Gestion de Mantenimiento</p>
         </div>
 
         <!-- Form -->
-        <form method="post" class="space-y-6">
+        <form method="post" class="space-y-6" aria-label="Formulario de inicio de sesion">
             {% csrf_token %}
 
             {% if form.errors %}
-            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg" role="alert" aria-live="assertive">
                 <p class="text-sm">
                     {% for error in form.non_field_errors %}
                         {{ error }}
@@ -36,31 +36,31 @@
 
             <div>
                 <label for="id_username" class="block text-sm font-medium text-gray-700 mb-2">
-                    Correo electrónico
+                    Correo electronico
                 </label>
                 {{ form.username }}
             </div>
 
             <div>
                 <label for="id_password" class="block text-sm font-medium text-gray-700 mb-2">
-                    Contraseña
+                    Contrasena
                 </label>
                 {{ form.password }}
             </div>
 
             <div class="flex items-center justify-between">
-                <label class="flex items-center">
-                    <input type="checkbox" name="remember" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" name="remember" id="remember" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                     <span class="ml-2 text-sm text-gray-600">Recordarme</span>
                 </label>
                 <a href="#" class="text-sm text-blue-600 hover:text-blue-500">
-                    ¿Olvidaste tu contraseña?
+                    Olvidaste tu contrasena?
                 </a>
             </div>
 
             <button type="submit"
                     class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition">
-                Iniciar Sesión
+                Iniciar Sesion
             </button>
         </form>
 

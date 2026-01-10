@@ -3,6 +3,11 @@ Models for field data capture.
 """
 from django.db import models
 from apps.core.models import BaseModel
+from apps.core.validators import (
+    datos_formulario_validator,
+    metadata_exif_validator,
+    validacion_ia_validator,
+)
 
 
 class RegistroCampo(BaseModel):
@@ -77,6 +82,7 @@ class RegistroCampo(BaseModel):
         'Datos del formulario',
         default=dict,
         blank=True,
+        validators=[datos_formulario_validator],
         help_text='Datos capturados según el tipo de actividad'
     )
 
@@ -200,6 +206,7 @@ class Evidencia(BaseModel):
         'Validación IA',
         default=dict,
         blank=True,
+        validators=[validacion_ia_validator],
         help_text='Resultado de validación: nitidez, iluminación, válida'
     )
 
@@ -207,7 +214,8 @@ class Evidencia(BaseModel):
     metadata_exif = models.JSONField(
         'Metadata EXIF',
         default=dict,
-        blank=True
+        blank=True,
+        validators=[metadata_exif_validator]
     )
 
     # Description

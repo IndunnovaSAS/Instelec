@@ -177,7 +177,22 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Celery Configuration
 CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = 'django-db'
+
+# Result Backend: Usar Redis si está disponible, de lo contrario usar RPC
+# Evitamos 'django-db' para prevenir crecimiento indefinido de la base de datos
+_redis_url = config('REDIS_URL', default='')
+if _redis_url:
+    # Usar Redis como backend de resultados (más eficiente y auto-limpieza)
+    CELERY_RESULT_BACKEND = _redis_url
+else:
+    # Fallback a RPC: los resultados se envían como mensajes transitorios
+    # No persisten y no causan crecimiento de base de datos
+    CELERY_RESULT_BACKEND = 'rpc://'
+
+# Expiración automática de resultados (en segundos)
+# Los resultados se eliminan automáticamente después de 1 hora
+CELERY_RESULT_EXPIRES = 3600
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -228,3 +243,26 @@ GS_PROJECT_ID = config('GS_PROJECT_ID', default='')
 if GS_BUCKET_NAME:
     DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
     GS_DEFAULT_ACL = 'publicRead'
+
+# Rate Limiting Configuration
+# Uses Redis cache backend for distributed rate limiting
+RATELIMIT_ENABLE = config('RATELIMIT_ENABLE', default=True, cast=bool)
+RATELIMIT_API_PREFIX = '/api/'
+RATELIMIT_SKIP_PATHS = ['/api/health']
+
+# Rate limit configuration per endpoint type
+# Format: 'count/period' where period is s (seconds), m (minutes), h (hours), d (days)
+RATELIMIT_CONFIG = {
+    'login': {
+        'rate': config('RATELIMIT_LOGIN', default='5/m'),  # 5 requests per minute per IP
+        'key': 'ip',
+    },
+    'api': {
+        'rate': config('RATELIMIT_API', default='100/m'),  # 100 requests per minute per user
+        'key': 'user',
+    },
+    'upload': {
+        'rate': config('RATELIMIT_UPLOAD', default='20/m'),  # 20 requests per minute per user
+        'key': 'user',
+    },
+}

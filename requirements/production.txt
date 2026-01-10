@@ -7,3 +7,7 @@ uvicorn[standard]>=0.27
 
 # Monitoring
 sentry-sdk>=1.39
+
+# Logging
+python-json-logger>=2.0
+google-cloud-logging>=3.8

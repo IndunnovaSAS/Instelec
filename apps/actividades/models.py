@@ -3,6 +3,10 @@ Models for activity scheduling and management.
 """
 from django.db import models
 from apps.core.models import BaseModel
+from apps.core.validators import (
+    campos_formulario_validator,
+    datos_importados_validator,
+)
 
 
 class TipoActividad(BaseModel):
@@ -56,8 +60,9 @@ class TipoActividad(BaseModel):
     )
     campos_formulario = models.JSONField(
         'Campos del formulario',
-        default=list,
+        default=dict,
         blank=True,
+        validators=[campos_formulario_validator],
         help_text='Configuración de campos dinámicos en formato JSON'
     )
     tiempo_estimado_horas = models.DecimalField(
@@ -103,7 +108,8 @@ class ProgramacionMensual(BaseModel):
     datos_importados = models.JSONField(
         'Datos importados',
         default=dict,
-        blank=True
+        blank=True,
+        validators=[datos_importados_validator]
     )
     total_actividades = models.PositiveIntegerField(
         'Total actividades',

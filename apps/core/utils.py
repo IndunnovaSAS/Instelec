@@ -140,14 +140,21 @@ def get_secret(secret_id: str, version: str = 'latest') -> str:
 
     try:
         from google.cloud import secretmanager
+        from google.api_core.exceptions import GoogleAPIError, NotFound, PermissionDenied
 
         client = secretmanager.SecretManagerServiceClient()
         name = f"projects/{project_id}/secrets/{secret_id}/versions/{version}"
         response = client.access_secret_version(request={"name": name})
         return response.payload.data.decode("UTF-8")
 
-    except Exception as e:
-        logger.error(f"Error retrieving secret {secret_id}: {e}")
+    except NotFound:
+        logger.warning(f"Secret {secret_id} not found, falling back to environment variable")
+        return os.environ.get(secret_id, '')
+    except PermissionDenied as e:
+        logger.error(f"Permission denied accessing secret {secret_id}: {e}")
+        return os.environ.get(secret_id, '')
+    except GoogleAPIError as e:
+        logger.error(f"Google API error retrieving secret {secret_id}: {e}")
         # Fallback to environment variable
         return os.environ.get(secret_id, '')
 
@@ -232,8 +239,14 @@ def create_cloud_task(
         logger.info(f"Created task: {response.name}")
         return response.name
 
-    except Exception as e:
-        logger.error(f"Error creating Cloud Task: {e}")
+    except ImportError as e:
+        logger.error(f"Cloud Tasks library not installed: {e}")
+        raise
+    except ValueError as e:
+        logger.error(f"Invalid Cloud Task parameters: {e}")
+        raise
+    except ConnectionError as e:
+        logger.error(f"Connection error creating Cloud Task: {e}")
         raise
 
 
@@ -261,6 +274,7 @@ def publish_message(topic_id: str, message: dict, attributes: dict = None) -> st
 
     try:
         from google.cloud import pubsub_v1
+        from google.api_core.exceptions import GoogleAPIError, NotFound
 
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(project_id, topic_id)
@@ -272,8 +286,14 @@ def publish_message(topic_id: str, message: dict, attributes: dict = None) -> st
         logger.info(f"Published message {message_id} to {topic_id}")
         return message_id
 
-    except Exception as e:
-        logger.error(f"Error publishing to Pub/Sub: {e}")
+    except NotFound as e:
+        logger.error(f"Pub/Sub topic {topic_id} not found: {e}")
+        raise
+    except GoogleAPIError as e:
+        logger.error(f"Google API error publishing to Pub/Sub: {e}")
+        raise
+    except (TypeError, ValueError) as e:
+        logger.error(f"Invalid message format for Pub/Sub: {e}")
         raise
 
 

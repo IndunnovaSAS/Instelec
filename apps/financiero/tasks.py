@@ -45,9 +45,15 @@ def generar_cuadro_costos_mensual(self, anio: int, mes: int, linea_id: str = Non
         logger.info(f"Cost table generated: {filename}")
         return {'status': 'success', 'filename': filename, 'id': str(cuadro.id)}
 
-    except Exception as exc:
-        logger.error(f"Error generating cost table: {exc}")
+    except (IOError, OSError) as exc:
+        logger.error(f"I/O error generating cost table: {exc}")
         raise self.retry(exc=exc, countdown=60 * 5)
+    except (ValueError, TypeError) as exc:
+        logger.error(f"Data error generating cost table: {exc}")
+        raise self.retry(exc=exc, countdown=60 * 5)
+    except CuadroCostos.DoesNotExist as exc:
+        logger.error(f"Cost table record not found: {exc}")
+        raise
 
 
 @shared_task

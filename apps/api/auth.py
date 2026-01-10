@@ -1,11 +1,14 @@
 """
 JWT Authentication for Django Ninja.
 """
+import logging
+
 from ninja.security import HttpBearer
 from rest_framework_simplejwt.tokens import AccessToken
-from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from django.contrib.auth import get_user_model
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -46,9 +49,12 @@ class JWTAuth(HttpBearer):
 
         except TokenError:
             return None
+        except InvalidToken:
+            return None
         except User.DoesNotExist:
             return None
-        except Exception:
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.warning(f"JWT authentication error: {e}")
             return None
 
 

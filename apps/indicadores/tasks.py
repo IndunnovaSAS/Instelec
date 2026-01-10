@@ -3,6 +3,7 @@
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from django.utils import timezone
+from django.db import DatabaseError
 from datetime import date
 
 logger = get_task_logger(__name__)
@@ -45,9 +46,12 @@ def calcular_indicadores_mensuales(self, linea_id=None, anio=None, mes=None):
         logger.info(f"Calculated KPIs for {len(resultados)} lines")
         return resultados
 
-    except Exception as exc:
-        logger.error(f"Error calculating KPIs: {exc}")
+    except DatabaseError as exc:
+        logger.error(f"Database error calculating KPIs: {exc}")
         raise self.retry(exc=exc, countdown=60 * 5)  # Retry in 5 minutes
+    except (ValueError, TypeError, ZeroDivisionError) as exc:
+        logger.error(f"Calculation error in KPIs: {exc}")
+        raise self.retry(exc=exc, countdown=60 * 5)
 
 
 @shared_task(bind=True)
@@ -75,8 +79,11 @@ def calcular_indice_global_todas_lineas(self, anio=None, mes=None):
 
         return resultados
 
-    except Exception as exc:
-        logger.error(f"Error calculating global index: {exc}")
+    except DatabaseError as exc:
+        logger.error(f"Database error calculating global index: {exc}")
+        raise
+    except (ValueError, TypeError, ZeroDivisionError) as exc:
+        logger.error(f"Calculation error in global index: {exc}")
         raise
 
 

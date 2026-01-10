@@ -1,14 +1,21 @@
 """
 User API endpoints (Django Ninja).
 """
+import logging
+
 from ninja import Router, Schema
 from ninja.security import HttpBearer
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 from typing import Optional
 from uuid import UUID
 
-router = Router()
+from apps.api.auth import JWTAuth
+from apps.api.ratelimit import ratelimit_login, ratelimit_api
+
+logger = logging.getLogger(__name__)
+router = Router(auth=JWTAuth())
 
 
 class LoginIn(Schema):
@@ -38,9 +45,14 @@ class ErrorOut(Schema):
     detail: str
 
 
-@router.post('/login', response={200: TokenOut, 401: ErrorOut}, auth=None)
+@router.post('/login', response={200: TokenOut, 401: ErrorOut, 429: ErrorOut}, auth=None)
+@ratelimit_login
 def login(request, data: LoginIn):
-    """Authenticate user and return JWT tokens."""
+    """
+    Authenticate user and return JWT tokens.
+
+    Rate limited: 5 requests per minute per IP address.
+    """
     user = authenticate(request, email=data.email, password=data.password)
 
     if user is None:
@@ -61,21 +73,32 @@ def login(request, data: LoginIn):
     }
 
 
-@router.post('/refresh', response={200: dict, 401: ErrorOut}, auth=None)
+@router.post('/refresh', response={200: dict, 401: ErrorOut, 429: ErrorOut}, auth=None)
+@ratelimit_login
 def refresh_token(request, refresh: str):
-    """Refresh access token."""
+    """
+    Refresh access token.
+
+    Rate limited: 5 requests per minute per IP address.
+    """
     try:
         token = RefreshToken(refresh)
         return {
             'access': str(token.access_token),
             'refresh': str(token),
         }
-    except Exception:
-        return 401, {'detail': 'Token inválido o expirado'}
+    except (TokenError, InvalidToken) as e:
+        logger.warning(f"Token refresh failed: {e}")
+        return 401, {'detail': 'Token invalido o expirado'}
 
 
-@router.get('/me', response=UserOut)
+@router.get('/me', response={200: UserOut, 429: ErrorOut})
+@ratelimit_api
 def get_current_user(request):
-    """Get current authenticated user."""
+    """
+    Get current authenticated user.
+
+    Rate limited: 100 requests per minute per user.
+    """
     user = request.auth
     return user

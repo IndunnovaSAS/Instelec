@@ -6,9 +6,10 @@ from typing import List, Optional
 from uuid import UUID
 from decimal import Decimal
 
+from apps.api.auth import JWTAuth
 from .models import Linea, Torre, PoligonoServidumbre
 
-router = Router()
+router = Router(auth=JWTAuth())
 
 
 class LineaOut(Schema):
