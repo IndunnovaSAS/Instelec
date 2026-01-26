@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Evidencias - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'campo:detalle' registro.id %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Evidencias Fotograficas</h1>
+                <p class="text-gray-600 dark:text-gray-400">
+                    {{ registro.actividad.tipo_actividad.nombre }} - Torre {{ registro.actividad.torre.numero }}
+                </p>
+            </div>
+        </div>
+        <span class="text-sm text-gray-500">
+            {{ evidencias|length }} fotos
+        </span>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900">
+                    <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Fotos ANTES</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                        {% with count=evidencias|dictsort:"tipo"|regroup:"tipo" %}
+                        {% for tipo in count %}{% if tipo.grouper == 'ANTES' %}{{ tipo.list|length }}{% endif %}{% empty %}0{% endfor %}
+                        {% endwith %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 dark:bg-blue-900">
+                    <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Fotos DURANTE</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                        {% with count=evidencias|dictsort:"tipo"|regroup:"tipo" %}
+                        {% for tipo in count %}{% if tipo.grouper == 'DURANTE' %}{{ tipo.list|length }}{% endif %}{% empty %}0{% endfor %}
+                        {% endwith %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 dark:bg-green-900">
+                    <svg class="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Fotos DESPUES</p>
+                    <p class="text-2xl font-bold text-gray-900 dark:text-white">
+                        {% with count=evidencias|dictsort:"tipo"|regroup:"tipo" %}
+                        {% for tipo in count %}{% if tipo.grouper == 'DESPUES' %}{{ tipo.list|length }}{% endif %}{% empty %}0{% endfor %}
+                        {% endwith %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photos Grid by Type -->
+    {% regroup evidencias by tipo as evidencias_por_tipo %}
+    {% for tipo in evidencias_por_tipo %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                {% if tipo.grouper == 'ANTES' %}
+                <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                {% elif tipo.grouper == 'DURANTE' %}
+                <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                {% else %}
+                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                {% endif %}
+                Fotos {{ tipo.grouper }}
+                <span class="text-sm font-normal text-gray-500">({{ tipo.list|length }})</span>
+            </h2>
+        </div>
+        <div class="p-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {% for evidencia in tipo.list %}
+                <div class="group relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer"
+                     onclick="openLightbox('{{ evidencia.imagen.url }}', '{{ evidencia.descripcion|default:tipo.grouper }}')">
+                    {% if evidencia.imagen %}
+                    <img src="{{ evidencia.imagen.url }}"
+                         alt="{{ evidencia.descripcion|default:'Evidencia' }}"
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                    {% elif evidencia.thumbnail %}
+                    <img src="{{ evidencia.thumbnail.url }}"
+                         alt="{{ evidencia.descripcion|default:'Evidencia' }}"
+                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    {% endif %}
+                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
+                        <svg class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
+                        </svg>
+                    </div>
+                    <!-- Validation Badge -->
+                    {% if evidencia.validada %}
+                    <div class="absolute top-2 right-2">
+                        <span class="px-2 py-1 text-xs rounded-full bg-green-500 text-white">
+                            Validada
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-12 text-center">
+        <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <p class="text-gray-500 dark:text-gray-400">No hay evidencias fotograficas registradas</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Lightbox Modal -->
+<div id="lightbox" class="fixed inset-0 bg-black bg-opacity-90 z-50 hidden flex items-center justify-center" onclick="closeLightbox()">
+    <button onclick="closeLightbox()" class="absolute top-4 right-4 text-white hover:text-gray-300">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+    </button>
+    <img id="lightbox-img" src="" alt="" class="max-w-full max-h-full object-contain" onclick="event.stopPropagation()">
+    <div id="lightbox-caption" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openLightbox(src, caption) {
+    document.getElementById('lightbox-img').src = src;
+    document.getElementById('lightbox-caption').textContent = caption;
+    document.getElementById('lightbox').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+    document.getElementById('lightbox').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLightbox();
+    }
+});
+</script>
+{% endblock %}

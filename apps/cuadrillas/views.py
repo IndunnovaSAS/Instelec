@@ -83,3 +83,18 @@ class MapaCuadrillasPartialView(LoginRequiredMixin, RoleRequiredMixin, TemplateV
         if self.request.headers.get('Accept') == 'application/json':
             return JsonResponse({'ubicaciones': context['ubicaciones']})
         return super().render_to_response(context, **response_kwargs)
+
+
+class CuadrillaCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, TemplateView):
+    """View for creating a new crew."""
+    template_name = 'cuadrillas/crear.html'
+    partial_template_name = 'cuadrillas/partials/form_cuadrilla.html'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from apps.usuarios.models import Usuario
+        from apps.lineas.models import Linea
+        context['supervisores'] = Usuario.objects.filter(rol='supervisor', is_active=True)
+        context['lineas'] = Linea.objects.filter(activa=True)
+        return context

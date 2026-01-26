@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Torre {{ torre.numero }} - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'lineas:torres' torre.linea.id %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Torre {{ torre.numero }}</h1>
+                <p class="text-gray-600 dark:text-gray-400">{{ torre.linea.codigo }} - {{ torre.linea.nombre }}</p>
+            </div>
+        </div>
+        <a href="{% url 'lineas:mapa' %}?linea={{ torre.linea.id }}"
+           class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Ver en Mapa
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Info Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informacion General</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Numero</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ torre.numero }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Linea</dt>
+                    <dd>
+                        <a href="{% url 'lineas:detalle' torre.linea.id %}" class="text-blue-600 hover:text-blue-800">
+                            {{ torre.linea.codigo }}
+                        </a>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Tipo</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ torre.get_tipo_display }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Estado</dt>
+                    <dd>
+                        <span class="px-2 py-1 text-xs rounded-full
+                            {% if torre.estado == 'BUENO' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200
+                            {% elif torre.estado == 'REGULAR' %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200
+                            {% elif torre.estado == 'MALO' %}bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200
+                            {% else %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200{% endif %}">
+                            {{ torre.get_estado_display }}
+                        </span>
+                    </dd>
+                </div>
+                {% if torre.altura_estructura %}
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Altura Estructura</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ torre.altura_estructura }} m</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+
+        <!-- Location Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ubicacion</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Coordenadas</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white font-mono text-sm">
+                        {{ torre.latitud|floatformat:6 }}, {{ torre.longitud|floatformat:6 }}
+                    </dd>
+                </div>
+                {% if torre.altitud %}
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Altitud</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ torre.altitud }} msnm</dd>
+                </div>
+                {% endif %}
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Municipio</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ torre.municipio|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Vereda</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ torre.vereda|default:"-" }}</dd>
+                </div>
+                {% if torre.propietario_predio %}
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Propietario</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ torre.propietario_predio }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+
+        <!-- Polygons Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Poligonos de Servidumbre</h2>
+            {% if poligonos %}
+            <ul class="space-y-2">
+                {% for poligono in poligonos %}
+                <li class="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <span class="text-gray-900 dark:text-white">{{ poligono.nombre|default:"Sin nombre" }}</span>
+                    <span class="text-sm text-gray-500">{{ poligono.area_hectareas|floatformat:2 }} ha</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-gray-500 dark:text-gray-400">No hay poligonos registrados</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Observations -->
+    {% if torre.observaciones %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Observaciones</h2>
+        <p class="text-gray-600 dark:text-gray-400">{{ torre.observaciones }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activities -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Actividades Recientes</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actividad</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for actividad in actividades_recientes %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ actividad.fecha_programada|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="font-medium text-gray-900 dark:text-white">{{ actividad.tipo_actividad }}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if actividad.estado == 'completada' %}bg-green-100 text-green-800
+                                {% elif actividad.estado == 'en_progreso' %}bg-blue-100 text-blue-800
+                                {% elif actividad.estado == 'pendiente' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ actividad.get_estado_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <a href="{% url 'actividades:detalle' actividad.id %}" class="text-blue-600 hover:text-blue-800">
+                                Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-500">
+                            No hay actividades registradas para esta torre
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

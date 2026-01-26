@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Linea - TransMaint{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Nueva Linea de Transmision</h1>
+            <p class="text-gray-600 dark:text-gray-400">Registrar una nueva linea en el sistema</p>
+        </div>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="codigo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Codigo
+                    </label>
+                    <input type="text" name="codigo" id="codigo" required
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                           placeholder="Ej: LT-001">
+                </div>
+
+                <div>
+                    <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Nombre
+                    </label>
+                    <input type="text" name="nombre" id="nombre" required
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                           placeholder="Nombre de la linea">
+                </div>
+
+                <div>
+                    <label for="cliente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Cliente
+                    </label>
+                    <input type="text" name="cliente" id="cliente"
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                           placeholder="Nombre del cliente">
+                </div>
+
+                <div>
+                    <label for="voltaje" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Voltaje (kV)
+                    </label>
+                    <input type="number" name="voltaje" id="voltaje" step="0.1"
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                           placeholder="Ej: 230">
+                </div>
+
+                <div>
+                    <label for="longitud_km" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Longitud (km)
+                    </label>
+                    <input type="number" name="longitud_km" id="longitud_km" step="0.01"
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                           placeholder="Longitud en kilometros">
+                </div>
+            </div>
+
+            <div>
+                <label for="descripcion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Descripcion
+                </label>
+                <textarea name="descripcion" id="descripcion" rows="3"
+                          class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                          placeholder="Descripcion de la linea..."></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <a href="{% url 'lineas:lista' %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Crear Linea
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

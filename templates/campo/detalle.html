@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Registro de Campo - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'campo:lista' %}" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+        </a>
+        <div class="flex-1">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Registro de Campo</h1>
+            <p class="text-gray-600 dark:text-gray-400">
+                {{ registro.actividad.tipo_actividad.nombre }} - Torre {{ registro.actividad.torre.numero }}
+            </p>
+        </div>
+        <div>
+            {% if registro.sincronizado %}
+            <span class="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-800">
+                Sincronizado
+            </span>
+            {% else %}
+            <span class="px-3 py-1 text-sm font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                Pendiente
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Info -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Activity Info -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informacion de la Actividad</h2>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Linea</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ registro.actividad.linea.codigo }} - {{ registro.actividad.linea.nombre }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Torre</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ registro.actividad.torre.numero }} ({{ registro.actividad.torre.get_tipo_display }})</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Tipo de Actividad</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ registro.actividad.tipo_actividad.nombre }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Estado Actividad</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ registro.actividad.get_estado_display }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time Info -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Tiempos</h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Inicio</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ registro.fecha_inicio|date:"d/m/Y H:i" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Fin</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if registro.fecha_fin %}
+                            {{ registro.fecha_fin|date:"d/m/Y H:i" }}
+                            {% else %}
+                            <span class="text-yellow-600">En curso</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Duracion</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if registro.duracion_minutos %}
+                            {{ registro.duracion_minutos }} minutos
+                            {% else %}
+                            -
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Info -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ubicacion</h2>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Coordenadas Inicio</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if registro.latitud_inicio %}
+                            {{ registro.latitud_inicio }}, {{ registro.longitud_inicio }}
+                            {% else %}
+                            No registradas
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Coordenadas Fin</p>
+                        <p class="font-medium text-gray-900 dark:text-white">
+                            {% if registro.latitud_fin %}
+                            {{ registro.latitud_fin }}, {{ registro.longitud_fin }}
+                            {% else %}
+                            No registradas
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-span-2">
+                        <p class="text-gray-500 dark:text-gray-400">Dentro del Poligono de Servidumbre</p>
+                        <p class="font-medium">
+                            {% if registro.dentro_poligono %}
+                            <span class="text-green-600">Si</span>
+                            {% elif registro.dentro_poligono == False %}
+                            <span class="text-red-600">No</span>
+                            {% else %}
+                            <span class="text-gray-500">No verificado</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observations -->
+            {% if registro.observaciones %}
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Observaciones</h2>
+                <p class="text-gray-700 dark:text-gray-300">{{ registro.observaciones }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Evidence -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Evidencias Fotograficas
+                    <span class="text-sm font-normal text-gray-500">({{ registro.total_evidencias }})</span>
+                </h2>
+
+                {% if evidencias_antes or evidencias_durante or evidencias_despues %}
+                <div class="space-y-6">
+                    <!-- Before -->
+                    {% if evidencias_antes %}
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ANTES</h3>
+                        <div class="grid grid-cols-3 md:grid-cols-4 gap-2">
+                            {% for evidencia in evidencias_antes %}
+                            <div class="relative group aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                                <img src="{{ evidencia.url_thumbnail|default:evidencia.url_original }}"
+                                     alt="Evidencia antes"
+                                     class="w-full h-full object-cover"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                {% if evidencia.validacion_ia.valida %}
+                                <span class="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full" title="Validada por IA"></span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- During -->
+                    {% if evidencias_durante %}
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">DURANTE</h3>
+                        <div class="grid grid-cols-3 md:grid-cols-4 gap-2">
+                            {% for evidencia in evidencias_durante %}
+                            <div class="relative group aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                                <img src="{{ evidencia.url_thumbnail|default:evidencia.url_original }}"
+                                     alt="Evidencia durante"
+                                     class="w-full h-full object-cover"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                {% if evidencia.validacion_ia.valida %}
+                                <span class="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full" title="Validada por IA"></span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- After -->
+                    {% if evidencias_despues %}
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">DESPUES</h3>
+                        <div class="grid grid-cols-3 md:grid-cols-4 gap-2">
+                            {% for evidencia in evidencias_despues %}
+                            <div class="relative group aspect-square bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                                <img src="{{ evidencia.url_thumbnail|default:evidencia.url_original }}"
+                                     alt="Evidencia despues"
+                                     class="w-full h-full object-cover"
+                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                <div class="hidden items-center justify-center w-full h-full text-gray-400">
+                                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                {% if evidencia.validacion_ia.valida %}
+                                <span class="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full" title="Validada por IA"></span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-gray-500 dark:text-gray-400 text-center py-8">No hay evidencias registradas</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- User Info -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Registrado por</h2>
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                        <span class="text-blue-600 dark:text-blue-300 font-semibold text-lg">
+                            {{ registro.usuario.first_name|slice:":1" }}{{ registro.usuario.last_name|slice:":1" }}
+                        </span>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ registro.usuario.get_full_name }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ registro.usuario.email }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Info -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Sincronizacion</h2>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Estado</p>
+                        <p class="font-medium">
+                            {% if registro.sincronizado %}
+                            <span class="text-green-600">Sincronizado</span>
+                            {% else %}
+                            <span class="text-yellow-600">Pendiente</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% if registro.fecha_sincronizacion %}
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400">Fecha</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ registro.fecha_sincronizacion|date:"d/m/Y H:i" }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Acciones</h2>
+                <div class="space-y-2">
+                    <a href="{% url 'actividades:detalle' registro.actividad.id %}"
+                       class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        Ver Actividad
+                    </a>
+                    <a href="{% url 'campo:evidencias' registro.pk %}"
+                       class="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Ver Evidencias
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -120,6 +120,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Custom User Model
 AUTH_USER_MODEL = 'usuarios.Usuario'
+LOGIN_URL = '/usuarios/login/'
+LOGIN_REDIRECT_URL = '/'
 
 # Internationalization
 LANGUAGE_CODE = 'es-co'

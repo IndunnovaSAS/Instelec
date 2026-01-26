@@ -19,8 +19,12 @@
         <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
             {% if actividad.cuadrilla %}
             <p class="text-sm"><strong>Cuadrilla:</strong> {{ actividad.cuadrilla.nombre }}</p>
+            {% if actividad.cuadrilla.supervisor %}
             <p class="text-sm"><strong>Supervisor:</strong> {{ actividad.cuadrilla.supervisor.get_full_name }}</p>
+            {% endif %}
+            {% if actividad.cuadrilla.vehiculo %}
             <p class="text-sm"><strong>Vehiculo:</strong> {{ actividad.cuadrilla.vehiculo.placa }}</p>
+            {% endif %}
             {% else %}
             <p class="text-sm text-gray-500">Sin cuadrilla asignada</p>
             {% endif %}
@@ -125,18 +129,10 @@
                 <div class="relative group" role="listitem">
                     <img src="{{ evidencia.url_thumbnail|default:evidencia.url_original }}"
                          alt="Evidencia {{ evidencia.get_tipo_display }} de la actividad"
-                         class="w-full h-16 object-cover rounded cursor-pointer"
-                         hx-get="{% url 'campo:evidencia_modal' evidencia.id %}"
-                         hx-target="#modal-container"
-                         role="button"
-                         tabindex="0"
-                         aria-label="Ver evidencia {{ evidencia.get_tipo_display }} en tamano completo">
+                         class="w-full h-16 object-cover rounded">
                     <span class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-1 py-0.5 rounded-b" aria-hidden="true">
                         {{ evidencia.get_tipo_display }}
                     </span>
-                    {% if evidencia.validacion_ia.valida %}
-                    <span class="absolute top-1 right-1 w-3 h-3 bg-green-500 rounded-full" aria-label="Validado por IA" title="Validado por IA"></span>
-                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
@@ -166,8 +162,7 @@
     {% if actividad.estado == 'PENDIENTE' %}
     <button hx-post="{% url 'actividades:cambiar_estado' actividad.id %}"
             hx-vals='{"estado": "EN_CURSO"}'
-            hx-swap="outerHTML"
-            hx-target="closest div"
+            hx-swap="none"
             class="px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition"
             aria-label="Iniciar actividad {{ actividad.tipo_actividad.nombre }}">
         Iniciar
@@ -175,8 +170,7 @@
     {% elif actividad.estado == 'EN_CURSO' %}
     <button hx-post="{% url 'actividades:cambiar_estado' actividad.id %}"
             hx-vals='{"estado": "COMPLETADA"}'
-            hx-swap="outerHTML"
-            hx-target="closest div"
+            hx-swap="none"
             class="px-3 py-1.5 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg transition"
             aria-label="Completar actividad {{ actividad.tipo_actividad.nombre }}">
         Completar

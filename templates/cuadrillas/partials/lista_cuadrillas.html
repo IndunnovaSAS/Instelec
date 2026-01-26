@@ -1,0 +1,75 @@
+<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+    <thead class="bg-gray-50 dark:bg-gray-900">
+        <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Codigo</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supervisor</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Linea</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vehiculo</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Miembros</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+        </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+        {% for cuadrilla in cuadrillas %}
+        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="font-medium text-gray-900 dark:text-white">{{ cuadrilla.codigo }}</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                {{ cuadrilla.nombre }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                {% if cuadrilla.supervisor %}
+                {{ cuadrilla.supervisor.get_full_name }}
+                {% else %}
+                <span class="text-gray-400">-</span>
+                {% endif %}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                {% if cuadrilla.linea_asignada %}
+                <a href="{% url 'lineas:detalle' cuadrilla.linea_asignada.id %}" class="text-blue-600 hover:text-blue-800">
+                    {{ cuadrilla.linea_asignada.codigo }}
+                </a>
+                {% else %}
+                <span class="text-gray-400">-</span>
+                {% endif %}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                {% if cuadrilla.vehiculo %}
+                {{ cuadrilla.vehiculo.placa }}
+                {% else %}
+                <span class="text-gray-400">-</span>
+                {% endif %}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                {{ cuadrilla.total_miembros }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                {% if cuadrilla.activa %}
+                <span class="flex items-center text-green-600">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    Activa
+                </span>
+                {% else %}
+                <span class="flex items-center text-gray-500">
+                    <span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                    Inactiva
+                </span>
+                {% endif %}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <a href="{% url 'cuadrillas:detalle' cuadrilla.id %}" class="text-blue-600 hover:text-blue-900 mr-3">Ver</a>
+                <a href="{% url 'cuadrillas:mapa' %}?cuadrilla={{ cuadrilla.id }}" class="text-green-600 hover:text-green-900">Mapa</a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                No hay cuadrillas registradas
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

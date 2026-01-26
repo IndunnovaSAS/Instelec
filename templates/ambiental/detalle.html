@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Informe Ambiental {{ informe.periodo_mes }}/{{ informe.periodo_anio }} - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'ambiental:lista' %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                    Informe Ambiental {{ informe.periodo_mes }}/{{ informe.periodo_anio }}
+                </h1>
+                <p class="text-gray-600 dark:text-gray-400">{{ informe.linea.codigo }} - {{ informe.linea.nombre }}</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            {% if informe.url_pdf %}
+            <a href="{{ informe.url_pdf }}" target="_blank"
+               class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                PDF
+            </a>
+            {% endif %}
+            {% if informe.url_excel %}
+            <a href="{{ informe.url_excel }}" target="_blank"
+               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Excel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status Banner -->
+    <div class="rounded-lg p-4
+        {% if informe.estado == 'APROBADO' %}bg-green-100 dark:bg-green-900/30 border border-green-300
+        {% elif informe.estado == 'ENVIADO' %}bg-purple-100 dark:bg-purple-900/30 border border-purple-300
+        {% elif informe.estado == 'EN_REVISION' %}bg-blue-100 dark:bg-blue-900/30 border border-blue-300
+        {% elif informe.estado == 'RECHAZADO' %}bg-red-100 dark:bg-red-900/30 border border-red-300
+        {% else %}bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300{% endif %}">
+        <div class="flex items-center gap-3">
+            <span class="font-medium
+                {% if informe.estado == 'APROBADO' %}text-green-800 dark:text-green-200
+                {% elif informe.estado == 'ENVIADO' %}text-purple-800 dark:text-purple-200
+                {% elif informe.estado == 'EN_REVISION' %}text-blue-800 dark:text-blue-200
+                {% elif informe.estado == 'RECHAZADO' %}text-red-800 dark:text-red-200
+                {% else %}text-yellow-800 dark:text-yellow-200{% endif %}">
+                Estado: {{ informe.get_estado_display }}
+            </span>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Info Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informacion del Informe</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Periodo</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ informe.periodo_mes }}/{{ informe.periodo_anio }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Linea</dt>
+                    <dd>
+                        <a href="{% url 'lineas:detalle' informe.linea.id %}" class="text-blue-600 hover:text-blue-800">
+                            {{ informe.linea.codigo }}
+                        </a>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Total Actividades</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ informe.total_actividades }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Total Podas</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ informe.total_podas }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Metrics Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Metricas Ambientales</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Hectareas Intervenidas</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ informe.hectareas_intervenidas }} ha</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">M3 Vegetacion Removida</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ informe.m3_vegetacion }} m³</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Workflow Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Flujo de Aprobacion</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Elaborado por</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">
+                        {{ informe.elaborado_por.get_full_name|default:"-" }}
+                        {% if informe.fecha_elaboracion %}
+                        <span class="text-xs text-gray-400 block">{{ informe.fecha_elaboracion|date:"d/m/Y H:i" }}</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Revisado por</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">
+                        {{ informe.revisado_por.get_full_name|default:"-" }}
+                        {% if informe.fecha_revision %}
+                        <span class="text-xs text-gray-400 block">{{ informe.fecha_revision|date:"d/m/Y H:i" }}</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Aprobado por</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">
+                        {{ informe.aprobado_por.get_full_name|default:"-" }}
+                        {% if informe.fecha_aprobacion %}
+                        <span class="text-xs text-gray-400 block">{{ informe.fecha_aprobacion|date:"d/m/Y H:i" }}</span>
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Observations -->
+    {% if informe.observaciones %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Observaciones</h2>
+        <p class="text-gray-600 dark:text-gray-400">{{ informe.observaciones }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Activities -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Actividades Incluidas</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Torre</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for actividad in actividades %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">
+                            {{ actividad.torre.numero }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ actividad.tipo_actividad.nombre }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ actividad.fecha_programada|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <a href="{% url 'actividades:detalle' actividad.id %}" class="text-blue-600 hover:text-blue-800">Ver</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-500">
+                            No hay actividades asociadas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

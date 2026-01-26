@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Consolidado Ambiental - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'ambiental:lista' %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Consolidado de Datos de Campo</h1>
+                <p class="text-gray-600 dark:text-gray-400">Resumen de registros para generacion de informes</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mes</label>
+                <select name="mes" class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    <option value="">Todos</option>
+                    {% for i in "123456789" %}
+                    <option value="{{ forloop.counter }}" {% if request.GET.mes == forloop.counter|stringformat:"d" %}selected{% endif %}>
+                        {{ forloop.counter }}
+                    </option>
+                    {% endfor %}
+                    <option value="10" {% if request.GET.mes == "10" %}selected{% endif %}>10</option>
+                    <option value="11" {% if request.GET.mes == "11" %}selected{% endif %}>11</option>
+                    <option value="12" {% if request.GET.mes == "12" %}selected{% endif %}>12</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ano</label>
+                <input type="number" name="anio" value="{{ request.GET.anio }}" placeholder="2024"
+                       class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 w-24">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linea</label>
+                <select name="linea" class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    <option value="">Todas</option>
+                    {% for linea in lineas %}
+                    <option value="{{ linea.id }}" {% if request.GET.linea == linea.id|stringformat:"s" %}selected{% endif %}>
+                        {{ linea.codigo }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Filtrar
+            </button>
+        </form>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="text-center">
+                <p class="text-3xl font-bold text-blue-600">{{ stats.total|default:0 }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Registros de Campo</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="text-center">
+                <p class="text-3xl font-bold text-green-600">{{ total_evidencias|default:0 }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Evidencias</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="text-center">
+                <p class="text-3xl font-bold text-purple-600">{{ torres_intervenidas|default:0 }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Torres Intervenidas</p>
+            </div>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <div class="text-center">
+                <p class="text-3xl font-bold text-orange-600">{{ lineas_intervenidas|default:0 }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Lineas</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Records Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Registros de Campo</h2>
+            <span class="text-sm text-gray-500">{{ registros.count }} registros</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Linea</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Torre</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actividad</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Evidencias</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for registro in registros %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ registro.fecha_inicio|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <a href="{% url 'lineas:detalle' registro.actividad.linea.id %}" class="text-blue-600 hover:text-blue-800">
+                                {{ registro.actividad.linea.codigo }}
+                            </a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">
+                            {{ registro.actividad.torre.numero }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ registro.actividad.tipo_actividad.nombre }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ registro.usuario.get_full_name }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ registro.evidencias.count }} fotos
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <a href="{% url 'campo:detalle' registro.id %}" class="text-blue-600 hover:text-blue-800">Ver</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            No hay registros con los filtros seleccionados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

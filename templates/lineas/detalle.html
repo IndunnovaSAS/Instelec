@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}{{ linea.codigo }} - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'lineas:lista' %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ linea.codigo }}</h1>
+                <p class="text-gray-600 dark:text-gray-400">{{ linea.nombre }}</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'lineas:mapa' %}?linea={{ linea.id }}"
+               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                </svg>
+                Ver en Mapa
+            </a>
+            <a href="{% url 'lineas:torres' linea.id %}"
+               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                </svg>
+                Ver Torres
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Info Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informacion General</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Codigo</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ linea.codigo }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Cliente</dt>
+                    <dd>
+                        <span class="px-2 py-1 text-xs rounded-full
+                            {% if linea.cliente == 'TRANSELCA' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200
+                            {% else %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200{% endif %}">
+                            {{ linea.get_cliente_display }}
+                        </span>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Tension</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ linea.tension_kv|default:"-" }} kV</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Longitud</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ linea.longitud_km|default:"-" }} km</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Estado</dt>
+                    <dd>
+                        {% if linea.activa %}
+                        <span class="flex items-center text-green-600">
+                            <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                            Activa
+                        </span>
+                        {% else %}
+                        <span class="flex items-center text-gray-500">
+                            <span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                            Inactiva
+                        </span>
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Location Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ubicacion</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Departamento</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ linea.departamento|default:"-" }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Municipios</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ linea.municipios|default:"-" }}</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Stats Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Estadisticas</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">{{ total_torres }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Torres</p>
+                </div>
+                <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ linea.longitud_km|default:0 }}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Km</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Observations -->
+    {% if linea.observaciones %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Observaciones</h2>
+        <p class="text-gray-600 dark:text-gray-400">{{ linea.observaciones }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Recent Torres -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Torres ({{ total_torres }})</h2>
+            <a href="{% url 'lineas:torres' linea.id %}" class="text-blue-600 hover:text-blue-800 text-sm">
+                Ver todas
+            </a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Numero</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Municipio</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for torre in torres %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900 dark:text-white">
+                            {{ torre.numero }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ torre.get_tipo_display }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if torre.estado == 'BUENO' %}bg-green-100 text-green-800
+                                {% elif torre.estado == 'REGULAR' %}bg-yellow-100 text-yellow-800
+                                {% elif torre.estado == 'MALO' %}bg-orange-100 text-orange-800
+                                {% else %}bg-red-100 text-red-800{% endif %}">
+                                {{ torre.get_estado_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ torre.municipio|default:"-" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">
+                            <a href="{% url 'lineas:torre_detalle' torre.id %}" class="text-blue-600 hover:text-blue-800">
+                                Ver detalle
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            No hay torres registradas para esta linea
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

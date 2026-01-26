@@ -86,24 +86,72 @@ class MapaLineasView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
     allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'ing_ambiental', 'supervisor']
 
     def get_context_data(self, **kwargs):
+        import json
         context = super().get_context_data(**kwargs)
-        # Get all active lines with their towers
-        lineas = Linea.objects.filter(activa=True).prefetch_related('torres')
-        context['lineas'] = lineas
 
-        # Prepare GeoJSON data for the map
+        # Check if a specific line is requested
+        linea_id = self.request.GET.get('linea')
+
+        if linea_id:
+            try:
+                from uuid import UUID
+                UUID(linea_id)
+                linea = Linea.objects.prefetch_related('torres').get(pk=linea_id)
+                context['linea'] = linea
+                torres = list(linea.torres.all())
+                context['torres'] = torres
+            except (ValueError, Linea.DoesNotExist):
+                linea = None
+                torres = []
+        else:
+            # Get all active lines with their towers
+            lineas = Linea.objects.filter(activa=True).prefetch_related('torres')
+            context['lineas'] = lineas
+            linea = lineas.first() if lineas.exists() else None
+            context['linea'] = linea
+            torres = list(linea.torres.all()) if linea else []
+            context['torres'] = torres
+
+        # Prepare JSON data for the map
         torres_data = []
-        for linea in lineas:
-            for torre in linea.torres.all():
-                if torre.latitud and torre.longitud:
-                    torres_data.append({
-                        'id': str(torre.id),
-                        'numero': torre.numero,
-                        'linea': linea.codigo,
-                        'tipo': torre.tipo,
-                        'estado': torre.estado,
-                        'lat': float(torre.latitud),
-                        'lng': float(torre.longitud),
-                    })
-        context['torres_json'] = torres_data
+        lats = []
+        lons = []
+        for torre in torres:
+            if torre.latitud and torre.longitud:
+                torres_data.append({
+                    'id': str(torre.id),
+                    'numero': torre.numero,
+                    'linea': linea.codigo if linea else '',
+                    'tipo': torre.tipo,
+                    'estado': torre.estado,
+                    'lat': float(torre.latitud),
+                    'lon': float(torre.longitud),
+                    'altitud': float(torre.altitud) if torre.altitud else None,
+                })
+                lats.append(float(torre.latitud))
+                lons.append(float(torre.longitud))
+
+        # Convert to JSON string for JavaScript
+        context['torres_json'] = json.dumps(torres_data)
+
+        # Calculate center of map
+        if lats and lons:
+            context['center_lat'] = sum(lats) / len(lats)
+            context['center_lon'] = sum(lons) / len(lons)
+        else:
+            # Default to Colombia center
+            context['center_lat'] = 4.5709
+            context['center_lon'] = -74.2973
+
+        return context
+
+
+class LineaCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, TemplateView):
+    """View for creating a new transmission line."""
+    template_name = 'lineas/crear.html'
+    partial_template_name = 'lineas/partials/form_linea.html'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         return context

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Mapa de Cuadrillas - TransMaint{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #map-cuadrillas {
+        height: calc(100vh - 200px);
+        min-height: 500px;
+    }
+    .crew-marker {
+        background: #3B82F6;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'cuadrillas:lista' %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Mapa de Cuadrillas</h1>
+                <p class="text-gray-600 dark:text-gray-400">Ubicacion en tiempo real</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="last-update" class="text-sm text-gray-500"></span>
+            <button id="refresh-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Actualizar
+            </button>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div id="map-cuadrillas"></div>
+    </div>
+
+    <!-- Crew List -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Cuadrillas Activas</h2>
+        </div>
+        <div id="crews-list" class="divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- Populated by JavaScript -->
+            <div class="p-4 text-center text-gray-500">Cargando ubicaciones...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    let map;
+    let markers = {};
+
+    // Initialize map
+    function initMap() {
+        map = L.map('map-cuadrillas').setView([4.5709, -74.2973], 10);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        loadCrewLocations();
+    }
+
+    // Load crew locations
+    function loadCrewLocations() {
+        fetch('{% url "cuadrillas:mapa_partial" %}', {
+            headers: {'Accept': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            updateMarkers(data.ubicaciones);
+            updateCrewsList(data.ubicaciones);
+            document.getElementById('last-update').textContent = 'Actualizado: ' + new Date().toLocaleTimeString();
+        })
+        .catch(error => {
+            console.error('Error loading locations:', error);
+        });
+    }
+
+    // Update markers on map
+    function updateMarkers(ubicaciones) {
+        // Clear existing markers
+        Object.values(markers).forEach(marker => map.removeLayer(marker));
+        markers = {};
+
+        const bounds = [];
+
+        ubicaciones.forEach(ubi => {
+            const marker = L.marker([ubi.lat, ubi.lng])
+                .addTo(map)
+                .bindPopup(`
+                    <strong>${ubi.cuadrilla_codigo}</strong><br>
+                    ${ubi.cuadrilla_nombre}<br>
+                    <small>Actualizado: ${new Date(ubi.timestamp).toLocaleString()}</small>
+                `);
+
+            markers[ubi.cuadrilla_id] = marker;
+            bounds.push([ubi.lat, ubi.lng]);
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
+    }
+
+    // Update crews list
+    function updateCrewsList(ubicaciones) {
+        const container = document.getElementById('crews-list');
+
+        if (ubicaciones.length === 0) {
+            container.innerHTML = '<div class="p-4 text-center text-gray-500">No hay cuadrillas con ubicacion registrada</div>';
+            return;
+        }
+
+        container.innerHTML = ubicaciones.map(ubi => `
+            <div class="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                 onclick="centerOnCrew('${ubi.cuadrilla_id}', ${ubi.lat}, ${ubi.lng})">
+                <div>
+                    <span class="font-medium text-gray-900 dark:text-white">${ubi.cuadrilla_codigo}</span>
+                    <span class="text-sm text-gray-500 ml-2">${ubi.cuadrilla_nombre}</span>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-gray-600 dark:text-gray-400">${ubi.lat.toFixed(6)}, ${ubi.lng.toFixed(6)}</div>
+                    <div class="text-xs text-gray-400">${new Date(ubi.timestamp).toLocaleString()}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Center map on specific crew
+    function centerOnCrew(crewId, lat, lng) {
+        map.setView([lat, lng], 15);
+        if (markers[crewId]) {
+            markers[crewId].openPopup();
+        }
+    }
+
+    // Event listeners
+    document.getElementById('refresh-btn').addEventListener('click', loadCrewLocations);
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadCrewLocations, 30000);
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', initMap);
+</script>
+{% endblock %}

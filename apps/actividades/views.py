@@ -147,3 +147,54 @@ class ImportarProgramacionView(LoginRequiredMixin, RoleRequiredMixin, TemplateVi
     """View for importing programming from Excel."""
     template_name = 'actividades/importar.html'
     allowed_roles = ['admin', 'director', 'coordinador']
+
+
+class ActividadCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, TemplateView):
+    """View for creating a new activity."""
+    template_name = 'actividades/crear.html'
+    partial_template_name = 'actividades/partials/form_actividad.html'
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente']
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context['tipos'] = TipoActividad.objects.filter(activo=True)
+        from apps.lineas.models import Linea
+        from apps.cuadrillas.models import Cuadrilla
+        context['lineas'] = Linea.objects.filter(activa=True)
+        context['cuadrillas'] = Cuadrilla.objects.filter(activa=True)
+        return context
+
+
+class ActividadEditView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, DetailView):
+    """View for editing an activity."""
+    model = Actividad
+    template_name = 'actividades/editar.html'
+    context_object_name = 'actividad'
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente']
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context['tipos'] = TipoActividad.objects.filter(activo=True)
+        context['estados'] = Actividad.Estado.choices
+        context['prioridades'] = Actividad.Prioridad.choices
+        from apps.lineas.models import Linea
+        from apps.cuadrillas.models import Cuadrilla
+        context['lineas'] = Linea.objects.filter(activa=True)
+        context['cuadrillas'] = Cuadrilla.objects.filter(activa=True)
+        return context
+
+
+class CambiarEstadoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """View for changing activity status via HTMX."""
+    model = Actividad
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor']
+
+    def post(self, request, *args, **kwargs):
+        from django.http import JsonResponse
+        actividad = self.get_object()
+        nuevo_estado = request.POST.get('estado')
+        if nuevo_estado in dict(Actividad.Estado.choices):
+            actividad.estado = nuevo_estado
+            actividad.save(update_fields=['estado', 'updated_at'])
+            return JsonResponse({'success': True, 'estado': nuevo_estado})
+        return JsonResponse({'success': False, 'error': 'Estado inválido'}, status=400)

@@ -1,0 +1,90 @@
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" id="modal-crear">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Nueva Actividad</h2>
+                <button onclick="document.getElementById('modal-crear').remove()"
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                        type="button">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form method="post" action="{% url 'actividades:crear' %}" class="space-y-4">
+                {% csrf_token %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="tipo_actividad" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Tipo de Actividad
+                        </label>
+                        <select name="tipo_actividad" id="tipo_actividad" required
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                            <option value="">Seleccionar...</option>
+                            {% for tipo in tipos %}
+                            <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Linea
+                        </label>
+                        <select name="linea" id="linea" required
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                            <option value="">Seleccionar...</option>
+                            {% for linea in lineas %}
+                            <option value="{{ linea.id }}">{{ linea.codigo }} - {{ linea.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="cuadrilla" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Cuadrilla
+                        </label>
+                        <select name="cuadrilla" id="cuadrilla"
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                            <option value="">Sin asignar</option>
+                            {% for cuadrilla in cuadrillas %}
+                            <option value="{{ cuadrilla.id }}">{{ cuadrilla.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="fecha_programada" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Fecha Programada
+                        </label>
+                        <input type="date" name="fecha_programada" id="fecha_programada" required
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="descripcion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Descripcion
+                    </label>
+                    <textarea name="descripcion" id="descripcion" rows="3"
+                              class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                              placeholder="Descripcion de la actividad..."></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button"
+                            onclick="document.getElementById('modal-crear').remove()"
+                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Crear Actividad
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

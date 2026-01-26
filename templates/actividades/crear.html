@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Actividad - TransMaint{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="mb-6">
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Nueva Actividad</h1>
+            <p class="text-gray-600 dark:text-gray-400">Crear una nueva actividad programada</p>
+        </div>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="tipo_actividad" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Tipo de Actividad
+                    </label>
+                    <select name="tipo_actividad" id="tipo_actividad" required
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Seleccionar...</option>
+                        {% for tipo in tipos %}
+                        <option value="{{ tipo.id }}">{{ tipo.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Linea
+                    </label>
+                    <select name="linea" id="linea" required
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Seleccionar...</option>
+                        {% for linea in lineas %}
+                        <option value="{{ linea.id }}">{{ linea.codigo }} - {{ linea.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="cuadrilla" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Cuadrilla
+                    </label>
+                    <select name="cuadrilla" id="cuadrilla"
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Sin asignar</option>
+                        {% for cuadrilla in cuadrillas %}
+                        <option value="{{ cuadrilla.id }}">{{ cuadrilla.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="fecha_programada" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Fecha Programada
+                    </label>
+                    <input type="date" name="fecha_programada" id="fecha_programada" required
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                </div>
+            </div>
+
+            <div>
+                <label for="descripcion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Descripcion
+                </label>
+                <textarea name="descripcion" id="descripcion" rows="3"
+                          class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                          placeholder="Descripcion de la actividad..."></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <a href="{% url 'actividades:lista' %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Crear Actividad
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

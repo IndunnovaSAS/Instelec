@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cuadrilla.codigo }} - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'cuadrillas:lista' %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </a>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ cuadrilla.codigo }}</h1>
+                <p class="text-gray-600 dark:text-gray-400">{{ cuadrilla.nombre }}</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'cuadrillas:mapa' %}?cuadrilla={{ cuadrilla.id }}"
+               class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Ver Ubicacion
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Info Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informacion General</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Codigo</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ cuadrilla.codigo }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Nombre</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ cuadrilla.nombre }}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Supervisor</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">
+                        {% if cuadrilla.supervisor %}
+                        {{ cuadrilla.supervisor.get_full_name }}
+                        {% else %}
+                        <span class="text-gray-400">Sin asignar</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Estado</dt>
+                    <dd>
+                        {% if cuadrilla.activa %}
+                        <span class="flex items-center text-green-600">
+                            <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                            Activa
+                        </span>
+                        {% else %}
+                        <span class="flex items-center text-gray-500">
+                            <span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                            Inactiva
+                        </span>
+                        {% endif %}
+                    </dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Assignment Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Asignacion</h2>
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Linea Asignada</dt>
+                    <dd>
+                        {% if cuadrilla.linea_asignada %}
+                        <a href="{% url 'lineas:detalle' cuadrilla.linea_asignada.id %}" class="text-blue-600 hover:text-blue-800">
+                            {{ cuadrilla.linea_asignada.codigo }}
+                        </a>
+                        {% else %}
+                        <span class="text-gray-400">Sin asignar</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Vehiculo</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">
+                        {% if cuadrilla.vehiculo %}
+                        {{ cuadrilla.vehiculo.placa }} - {{ cuadrilla.vehiculo.marca }} {{ cuadrilla.vehiculo.modelo }}
+                        {% else %}
+                        <span class="text-gray-400">Sin asignar</span>
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Total Miembros</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">{{ miembros.count }} personas</dd>
+                </div>
+            </dl>
+        </div>
+
+        <!-- Location Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ultima Ubicacion</h2>
+            {% if ultima_ubicacion %}
+            <dl class="space-y-3">
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Coordenadas</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white font-mono text-sm">
+                        {{ ultima_ubicacion.latitud|floatformat:6 }}, {{ ultima_ubicacion.longitud|floatformat:6 }}
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Precision</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">
+                        {{ ultima_ubicacion.precision_metros|floatformat:0|default:"-" }} metros
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Fecha/Hora</dt>
+                    <dd class="font-medium text-gray-900 dark:text-white">
+                        {{ ultima_ubicacion.created_at|date:"d/m/Y H:i" }}
+                    </dd>
+                </div>
+                {% if ultima_ubicacion.bateria %}
+                <div>
+                    <dt class="text-sm text-gray-500 dark:text-gray-400">Bateria</dt>
+                    <dd>
+                        <div class="flex items-center gap-2">
+                            <div class="w-20 h-2 bg-gray-200 rounded-full">
+                                <div class="h-full rounded-full
+                                    {% if ultima_ubicacion.bateria > 50 %}bg-green-500
+                                    {% elif ultima_ubicacion.bateria > 20 %}bg-yellow-500
+                                    {% else %}bg-red-500{% endif %}"
+                                    style="width: {{ ultima_ubicacion.bateria }}%">
+                                </div>
+                            </div>
+                            <span class="text-sm text-gray-600 dark:text-gray-400">{{ ultima_ubicacion.bateria }}%</span>
+                        </div>
+                    </dd>
+                </div>
+                {% endif %}
+            </dl>
+            {% else %}
+            <p class="text-gray-500 dark:text-gray-400">Sin ubicacion registrada</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Observations -->
+    {% if cuadrilla.observaciones %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Observaciones</h2>
+        <p class="text-gray-600 dark:text-gray-400">{{ cuadrilla.observaciones }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Members Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Miembros de la Cuadrilla</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-900">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cedula</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha Inicio</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for miembro in miembros %}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mr-3">
+                                    <span class="text-sm font-medium text-blue-600 dark:text-blue-300">
+                                        {{ miembro.usuario.first_name|slice:":1" }}{{ miembro.usuario.last_name|slice:":1" }}
+                                    </span>
+                                </div>
+                                <span class="font-medium text-gray-900 dark:text-white">
+                                    {{ miembro.usuario.get_full_name }}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ miembro.usuario.cedula|default:"-" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full
+                                {% if miembro.rol_cuadrilla == 'SUPERVISOR' %}bg-purple-100 text-purple-800
+                                {% elif miembro.rol_cuadrilla == 'LINIERO' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ miembro.get_rol_cuadrilla_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                            {{ miembro.fecha_inicio|date:"d/m/Y" }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if miembro.activo %}
+                            <span class="flex items-center text-green-600">
+                                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                                Activo
+                            </span>
+                            {% else %}
+                            <span class="flex items-center text-gray-500">
+                                <span class="w-2 h-2 bg-gray-400 rounded-full mr-2"></span>
+                                Inactivo
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                            No hay miembros registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

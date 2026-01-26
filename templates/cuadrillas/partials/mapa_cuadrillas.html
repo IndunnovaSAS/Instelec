@@ -1,0 +1,31 @@
+{% load static %}
+{# JSON data for map - used by JavaScript #}
+<script type="application/json" id="ubicaciones-data">
+{{ ubicaciones|safe }}
+</script>
+
+<div id="crews-data" class="divide-y divide-gray-200 dark:divide-gray-700">
+    {% for ubi in ubicaciones %}
+    <div class="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+         data-lat="{{ ubi.lat }}"
+         data-lng="{{ ubi.lng }}"
+         data-id="{{ ubi.cuadrilla_id }}">
+        <div>
+            <span class="font-medium text-gray-900 dark:text-white">{{ ubi.cuadrilla_codigo }}</span>
+            <span class="text-sm text-gray-500 ml-2">{{ ubi.cuadrilla_nombre }}</span>
+        </div>
+        <div class="text-right">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+                {{ ubi.lat|floatformat:6 }}, {{ ubi.lng|floatformat:6 }}
+            </div>
+            <div class="text-xs text-gray-400">
+                {% if ubi.precision %}Precision: {{ ubi.precision|floatformat:0 }}m{% endif %}
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="p-4 text-center text-gray-500">
+        No hay cuadrillas con ubicacion registrada
+    </div>
+    {% endfor %}
+</div>

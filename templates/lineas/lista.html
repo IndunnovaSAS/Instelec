@@ -163,7 +163,7 @@
                             <a href="{% url 'lineas:detalle' linea.id %}"
                                class="text-blue-600 hover:text-blue-900 mr-3"
                                aria-label="Ver detalle de linea {{ linea.codigo }}">Ver</a>
-                            <a href="{% url 'lineas:mapa' linea.id %}"
+                            <a href="{% url 'lineas:mapa' %}?linea={{ linea.id }}"
                                class="text-green-600 hover:text-green-900"
                                aria-label="Ver mapa de linea {{ linea.codigo }}">Mapa</a>
                         </td>

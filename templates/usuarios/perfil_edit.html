@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Perfil - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'usuarios:perfil' %}" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Editar Perfil</h1>
+            <p class="text-gray-600 dark:text-gray-400">Actualiza tu informacion personal</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="first_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Nombre
+                    </label>
+                    <input type="text" name="first_name" id="first_name" value="{{ user.first_name }}"
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                </div>
+
+                <div>
+                    <label for="last_name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Apellido
+                    </label>
+                    <input type="text" name="last_name" id="last_name" value="{{ user.last_name }}"
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Email
+                    </label>
+                    <input type="email" name="email" id="email" value="{{ user.email }}" readonly
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 bg-gray-100 dark:bg-gray-600">
+                    <p class="text-xs text-gray-500 mt-1">El email no puede ser modificado</p>
+                </div>
+
+                <div>
+                    <label for="telefono" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Telefono
+                    </label>
+                    <input type="tel" name="telefono" id="telefono" value="{{ user.telefono|default:'' }}"
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                </div>
+            </div>
+
+            <!-- Change Password Section -->
+            <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Cambiar Contrasena</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Deja en blanco si no deseas cambiar la contrasena</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="new_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Nueva Contrasena
+                        </label>
+                        <input type="password" name="new_password" id="new_password"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    </div>
+
+                    <div>
+                        <label for="confirm_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Confirmar Contrasena
+                        </label>
+                        <input type="password" name="confirm_password" id="confirm_password"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'usuarios:perfil' %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
