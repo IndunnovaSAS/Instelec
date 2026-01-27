@@ -8,6 +8,7 @@ import '../features/actividades/presentation/screens/actividad_detalle_screen.da
 import '../features/captura/presentation/screens/captura_screen.dart';
 import '../features/captura/presentation/screens/camera_screen.dart';
 import '../features/sync/presentation/screens/sync_screen.dart';
+import '../features/asistencia/asistencia_screen.dart';
 import '../shared/widgets/main_shell.dart';
 
 final appRouter = GoRouter(
@@ -73,6 +74,12 @@ final appRouter = GoRouter(
           builder: (context, state) => const Scaffold(
             body: Center(child: Text('Perfil')),
           ),
+        ),
+
+        // Asistencia diaria
+        GoRoute(
+          path: '/asistencia',
+          builder: (context, state) => const AsistenciaScreen(),
         ),
       ],
     ),

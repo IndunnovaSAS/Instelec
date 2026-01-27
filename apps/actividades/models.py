@@ -71,6 +71,11 @@ class TipoActividad(BaseModel):
         decimal_places=2,
         default=2
     )
+    rendimiento_estandar_vanos = models.PositiveIntegerField(
+        'Vanos por día esperados',
+        default=3,
+        help_text='Rendimiento estándar en vanos por día para este tipo de actividad'
+    )
     activo = models.BooleanField(
         'Activo',
         default=True
@@ -198,6 +203,38 @@ class Actividad(BaseModel):
         related_name='actividades',
         verbose_name='Programación mensual'
     )
+    tramo = models.ForeignKey(
+        'lineas.Tramo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='actividades',
+        verbose_name='Tramo'
+    )
+
+    # SAP Integration
+    aviso_sap = models.CharField(
+        'Número Aviso SAP',
+        max_length=20,
+        blank=True,
+        help_text='Número de aviso en el sistema SAP de Transelca'
+    )
+
+    # Progress and billing
+    porcentaje_avance = models.DecimalField(
+        'Porcentaje de avance',
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text='Porcentaje de avance de la actividad (0-100)'
+    )
+    valor_facturacion = models.DecimalField(
+        'Valor facturación',
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text='Valor total de facturación de la actividad'
+    )
 
     # Scheduling
     fecha_programada = models.DateField('Fecha programada')
@@ -249,6 +286,8 @@ class Actividad(BaseModel):
             models.Index(fields=['fecha_programada', 'estado']),
             models.Index(fields=['cuadrilla', 'fecha_programada']),
             models.Index(fields=['linea', 'fecha_programada']),
+            models.Index(fields=['aviso_sap']),
+            models.Index(fields=['tramo']),
         ]
 
     def __str__(self):
@@ -266,6 +305,24 @@ class Actividad(BaseModel):
         if self.estado in [self.Estado.COMPLETADA, self.Estado.CANCELADA]:
             return False
         return self.fecha_efectiva < timezone.now().date()
+
+    @property
+    def produccion_proporcional(self):
+        """Calcula la producción proporcional al avance: porcentaje_avance × valor_facturacion."""
+        return (self.porcentaje_avance / 100) * self.valor_facturacion
+
+    @property
+    def rendimiento_esperado_diario(self):
+        """Retorna el rendimiento esperado en vanos por día según el tipo de actividad."""
+        return self.tipo_actividad.rendimiento_estandar_vanos
+
+    def actualizar_avance(self, nuevo_porcentaje):
+        """Actualiza el porcentaje de avance de la actividad."""
+        from decimal import Decimal
+        self.porcentaje_avance = Decimal(str(nuevo_porcentaje))
+        if self.porcentaje_avance >= 100:
+            self.estado = self.Estado.COMPLETADA
+        self.save(update_fields=['porcentaje_avance', 'estado', 'updated_at'])
 
     def iniciar(self, usuario):
         """Mark activity as started."""

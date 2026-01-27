@@ -3,7 +3,7 @@ Admin configuration for crews.
 """
 from django.contrib import admin
 from apps.core.admin import BaseModelAdmin
-from .models import Vehiculo, Cuadrilla, CuadrillaMiembro, TrackingUbicacion
+from .models import Vehiculo, Cuadrilla, CuadrillaMiembro, TrackingUbicacion, Asistencia
 
 
 class CuadrillaMiembroInline(admin.TabularInline):
@@ -56,3 +56,32 @@ class TrackingUbicacionAdmin(admin.ModelAdmin):
     search_fields = ('cuadrilla__codigo', 'usuario__email')
     readonly_fields = ('id', 'created_at', 'updated_at')
     date_hierarchy = 'created_at'
+
+
+@admin.register(Asistencia)
+class AsistenciaAdmin(BaseModelAdmin):
+    list_display = ('usuario', 'cuadrilla', 'fecha', 'tipo_novedad', 'hora_entrada', 'hora_salida', 'horas_trabajadas')
+    list_filter = ('tipo_novedad', 'cuadrilla', 'fecha')
+    search_fields = ('usuario__first_name', 'usuario__last_name', 'cuadrilla__codigo')
+    raw_id_fields = ('usuario', 'cuadrilla', 'registrado_por')
+    date_hierarchy = 'fecha'
+
+    fieldsets = (
+        (None, {
+            'fields': ('usuario', 'cuadrilla', 'fecha')
+        }),
+        ('Novedad', {
+            'fields': ('tipo_novedad', 'observacion')
+        }),
+        ('Horario', {
+            'fields': ('hora_entrada', 'hora_salida')
+        }),
+        ('Registro', {
+            'fields': ('registrado_por',)
+        }),
+        ('Auditoría', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('id', 'created_at', 'updated_at')

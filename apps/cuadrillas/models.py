@@ -249,3 +249,96 @@ class TrackingUbicacion(BaseModel):
 
     def __str__(self):
         return f"{self.cuadrilla.codigo} - {self.created_at}"
+
+
+class Asistencia(BaseModel):
+    """
+    Modelo para registro de asistencia diaria del personal de cuadrillas.
+    """
+
+    class TipoNovedad(models.TextChoices):
+        PRESENTE = 'PRESENTE', 'Presente'
+        VACACIONES = 'VACACIONES', 'Vacaciones'
+        INCAPACIDAD = 'INCAPACIDAD', 'Incapacidad'
+        PERMISO = 'PERMISO', 'Permiso'
+        AUSENTE = 'AUSENTE', 'Ausente'
+        LICENCIA = 'LICENCIA', 'Licencia'
+        CAPACITACION = 'CAPACITACION', 'Capacitación'
+
+    usuario = models.ForeignKey(
+        'usuarios.Usuario',
+        on_delete=models.CASCADE,
+        related_name='asistencias',
+        verbose_name='Usuario'
+    )
+    cuadrilla = models.ForeignKey(
+        Cuadrilla,
+        on_delete=models.CASCADE,
+        related_name='asistencias',
+        verbose_name='Cuadrilla'
+    )
+    fecha = models.DateField(
+        'Fecha',
+        help_text='Fecha del registro de asistencia'
+    )
+    tipo_novedad = models.CharField(
+        'Tipo de novedad',
+        max_length=20,
+        choices=TipoNovedad.choices,
+        default=TipoNovedad.PRESENTE
+    )
+    hora_entrada = models.TimeField(
+        'Hora de entrada',
+        null=True,
+        blank=True
+    )
+    hora_salida = models.TimeField(
+        'Hora de salida',
+        null=True,
+        blank=True
+    )
+    observacion = models.TextField(
+        'Observación',
+        blank=True,
+        help_text='Observaciones adicionales sobre la asistencia'
+    )
+    registrado_por = models.ForeignKey(
+        'usuarios.Usuario',
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='asistencias_registradas',
+        verbose_name='Registrado por'
+    )
+
+    class Meta:
+        db_table = 'asistencias'
+        verbose_name = 'Asistencia'
+        verbose_name_plural = 'Asistencias'
+        unique_together = ['usuario', 'cuadrilla', 'fecha']
+        ordering = ['-fecha', 'cuadrilla', 'usuario']
+        indexes = [
+            models.Index(fields=['fecha']),
+            models.Index(fields=['cuadrilla', 'fecha']),
+            models.Index(fields=['tipo_novedad']),
+        ]
+
+    def __str__(self):
+        return f"{self.usuario.get_full_name()} - {self.fecha} - {self.get_tipo_novedad_display()}"
+
+    @property
+    def esta_presente(self):
+        """Indica si el usuario estuvo presente."""
+        return self.tipo_novedad == self.TipoNovedad.PRESENTE
+
+    @property
+    def horas_trabajadas(self):
+        """Calcula las horas trabajadas si hay entrada y salida."""
+        if self.hora_entrada and self.hora_salida:
+            from datetime import datetime, timedelta
+            entrada = datetime.combine(self.fecha, self.hora_entrada)
+            salida = datetime.combine(self.fecha, self.hora_salida)
+            if salida < entrada:
+                salida += timedelta(days=1)
+            delta = salida - entrada
+            return round(delta.total_seconds() / 3600, 2)
+        return None

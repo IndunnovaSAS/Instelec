@@ -246,3 +246,147 @@ def consolidar_costos_mensuales(anio: int, mes: int):
 
     logger.info(f"Monthly costs consolidated: ${consolidado['totales']['total']}")
     return consolidado
+
+
+@shared_task
+def calcular_produccion_diaria(actividad_id: str):
+    """
+    Calcula la producción proporcional de una actividad.
+    Producción = porcentaje_avance × valor_facturacion
+    """
+    from apps.actividades.models import Actividad
+
+    try:
+        actividad = Actividad.objects.get(id=actividad_id)
+        produccion = actividad.produccion_proporcional
+
+        logger.info(
+            f"Production calculated for activity {actividad_id}: "
+            f"{actividad.porcentaje_avance}% x ${actividad.valor_facturacion} = ${produccion}"
+        )
+
+        return {
+            'actividad_id': actividad_id,
+            'porcentaje_avance': float(actividad.porcentaje_avance),
+            'valor_facturacion': float(actividad.valor_facturacion),
+            'produccion_proporcional': float(produccion)
+        }
+    except Actividad.DoesNotExist:
+        logger.error(f"Activity not found: {actividad_id}")
+        return {'error': 'Activity not found', 'actividad_id': actividad_id}
+
+
+@shared_task
+def calcular_costo_vs_produccion(actividad_id: str):
+    """
+    Calcula la relación costo vs producción para una actividad.
+    Útil para monitoreo de rentabilidad en tiempo real.
+    """
+    from apps.actividades.models import Actividad
+    from .models import CostoActividad
+
+    try:
+        actividad = Actividad.objects.get(id=actividad_id)
+        produccion = actividad.produccion_proporcional
+
+        # Get accumulated cost
+        try:
+            costo = CostoActividad.objects.get(actividad=actividad)
+            costo_acumulado = costo.costo_total
+        except CostoActividad.DoesNotExist:
+            costo_acumulado = Decimal('0')
+
+        desviacion = produccion - costo_acumulado
+        margen = (desviacion / produccion * 100) if produccion > 0 else Decimal('0')
+
+        resultado = {
+            'actividad_id': actividad_id,
+            'produccion': float(produccion),
+            'costo_acumulado': float(costo_acumulado),
+            'desviacion': float(desviacion),
+            'margen_porcentaje': float(margen),
+            'estado': 'positivo' if desviacion >= 0 else 'negativo'
+        }
+
+        logger.info(
+            f"Cost vs Production for {actividad_id}: "
+            f"Production=${produccion}, Cost=${costo_acumulado}, "
+            f"Deviation=${desviacion} ({margen:.1f}%)"
+        )
+
+        return resultado
+
+    except Actividad.DoesNotExist:
+        logger.error(f"Activity not found: {actividad_id}")
+        return {'error': 'Activity not found', 'actividad_id': actividad_id}
+
+
+@shared_task
+def generar_resumen_costos_vs_produccion(linea_id: str = None, fecha_inicio: str = None, fecha_fin: str = None):
+    """
+    Genera un resumen de costos vs producción para múltiples actividades.
+    Útil para dashboards de monitoreo en tiempo real.
+    """
+    from apps.actividades.models import Actividad
+    from apps.lineas.models import Linea
+    from .models import CostoActividad
+    from datetime import datetime
+
+    qs = Actividad.objects.filter(
+        estado__in=['EN_CURSO', 'COMPLETADA']
+    ).select_related('linea', 'tipo_actividad', 'cuadrilla')
+
+    if linea_id:
+        qs = qs.filter(linea_id=linea_id)
+
+    if fecha_inicio:
+        qs = qs.filter(fecha_programada__gte=datetime.strptime(fecha_inicio, '%Y-%m-%d').date())
+
+    if fecha_fin:
+        qs = qs.filter(fecha_programada__lte=datetime.strptime(fecha_fin, '%Y-%m-%d').date())
+
+    total_produccion = Decimal('0')
+    total_costo = Decimal('0')
+    actividades_resumen = []
+
+    for actividad in qs:
+        produccion = actividad.produccion_proporcional
+
+        try:
+            costo = CostoActividad.objects.get(actividad=actividad)
+            costo_acumulado = costo.costo_total
+        except CostoActividad.DoesNotExist:
+            costo_acumulado = Decimal('0')
+
+        total_produccion += produccion
+        total_costo += costo_acumulado
+
+        actividades_resumen.append({
+            'actividad_id': str(actividad.id),
+            'linea': actividad.linea.codigo,
+            'tipo': actividad.tipo_actividad.nombre,
+            'avance': float(actividad.porcentaje_avance),
+            'produccion': float(produccion),
+            'costo': float(costo_acumulado),
+            'desviacion': float(produccion - costo_acumulado)
+        })
+
+    desviacion_total = total_produccion - total_costo
+    margen_total = (desviacion_total / total_produccion * 100) if total_produccion > 0 else Decimal('0')
+
+    resumen = {
+        'total_actividades': len(actividades_resumen),
+        'total_produccion': float(total_produccion),
+        'total_costo': float(total_costo),
+        'desviacion_total': float(desviacion_total),
+        'margen_porcentaje': float(margen_total),
+        'estado_general': 'positivo' if desviacion_total >= 0 else 'negativo',
+        'actividades': actividades_resumen
+    }
+
+    logger.info(
+        f"Cost vs Production summary: {len(actividades_resumen)} activities, "
+        f"Total Production=${total_produccion}, Total Cost=${total_costo}"
+    )
+
+    return resumen

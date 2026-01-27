@@ -16,4 +16,6 @@ urlpatterns = [
     path('<uuid:pk>/cambiar-estado/', views.CambiarEstadoView.as_view(), name='cambiar_estado'),
     path('programacion/', views.ProgramacionListView.as_view(), name='programacion'),
     path('programacion/importar/', views.ImportarProgramacionView.as_view(), name='importar'),
+    path('programacion/exportar/', views.ExportarProgramacionView.as_view(), name='exportar_programacion'),
+    path('reportes/avance/', views.ExportarAvanceView.as_view(), name='exportar_avance'),
 ]

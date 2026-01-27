@@ -29,6 +29,10 @@ class RegistroIn(Schema):
     observaciones: str = ""
     latitud_fin: Decimal
     longitud_fin: Decimal
+    porcentaje_avance_reportado: Decimal = Decimal("0")
+    tiene_pendiente: bool = False
+    tipo_pendiente: str = ""
+    descripcion_pendiente: str = ""
 
 
 class RegistroSyncIn(Schema):
@@ -54,6 +58,10 @@ class RegistroOut(Schema):
     dentro_poligono: Optional[bool]
     sincronizado: bool
     total_evidencias: int
+    porcentaje_avance_reportado: Decimal
+    tiene_pendiente: bool
+    tipo_pendiente: str
+    descripcion_pendiente: str
 
 
 class RegistroDetailOut(RegistroOut):
@@ -97,6 +105,10 @@ def listar_registros(
             dentro_poligono=r.dentro_poligono,
             sincronizado=r.sincronizado,
             total_evidencias=r.total_evidencias,
+            porcentaje_avance_reportado=r.porcentaje_avance_reportado,
+            tiene_pendiente=r.tiene_pendiente,
+            tipo_pendiente=r.tipo_pendiente,
+            descripcion_pendiente=r.descripcion_pendiente,
         )
         for r in qs
     ]
@@ -137,6 +149,10 @@ def obtener_registro(request: HttpRequest, registro_id: UUID) -> RegistroDetailO
         datos_formulario=registro.datos_formulario,
         observaciones=registro.observaciones,
         evidencias=evidencias,
+        porcentaje_avance_reportado=registro.porcentaje_avance_reportado,
+        tiene_pendiente=registro.tiene_pendiente,
+        tipo_pendiente=registro.tipo_pendiente,
+        descripcion_pendiente=registro.descripcion_pendiente,
     )
 
 
@@ -166,12 +182,22 @@ def sincronizar_registros(request: HttpRequest, data: RegistroSyncIn) -> list[Sy
             registro.fecha_fin = timezone.now()
             registro.sincronizado = True
             registro.fecha_sincronizacion = timezone.now()
+            # New fields for avance and pendientes
+            registro.porcentaje_avance_reportado = reg.porcentaje_avance_reportado
+            registro.tiene_pendiente = reg.tiene_pendiente
+            registro.tipo_pendiente = reg.tipo_pendiente
+            registro.descripcion_pendiente = reg.descripcion_pendiente
             registro.save()
 
-            # Update activity status
+            # Update activity status and avance
             actividad = registro.actividad
-            actividad.estado = Actividad.Estado.COMPLETADA
-            actividad.save(update_fields=['estado', 'updated_at'])
+            # Update porcentaje_avance if reported avance is higher
+            if reg.porcentaje_avance_reportado > actividad.porcentaje_avance:
+                actividad.porcentaje_avance = reg.porcentaje_avance_reportado
+            # Mark as completed only if 100% advance
+            if reg.porcentaje_avance_reportado >= 100:
+                actividad.estado = Actividad.Estado.COMPLETADA
+            actividad.save(update_fields=['estado', 'porcentaje_avance', 'updated_at'])
 
             resultados.append(SyncResultOut(
                 id=str(reg.actividad_id),

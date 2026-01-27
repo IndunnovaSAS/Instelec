@@ -4,7 +4,7 @@ Admin configuration for transmission lines.
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
 from apps.core.admin import BaseModelAdmin
-from .models import Linea, Torre, PoligonoServidumbre
+from .models import Linea, Torre, PoligonoServidumbre, Tramo
 
 
 class TorreInline(admin.TabularInline):
@@ -86,3 +86,40 @@ class PoligonoServidumbreAdmin(GISModelAdmin):
         }),
     )
     readonly_fields = ('id', 'created_at', 'updated_at', 'area_hectareas')
+
+
+@admin.register(Tramo)
+class TramoAdmin(BaseModelAdmin):
+    list_display = ('codigo', 'nombre', 'linea', 'torre_inicio', 'torre_fin', 'numero_vanos', 'total_torres')
+    list_filter = ('linea',)
+    search_fields = ('codigo', 'nombre', 'linea__codigo')
+    raw_id_fields = ('linea', 'torre_inicio', 'torre_fin')
+
+    fieldsets = (
+        (None, {
+            'fields': ('codigo', 'nombre', 'linea')
+        }),
+        ('Rango de Torres', {
+            'fields': ('torre_inicio', 'torre_fin')
+        }),
+        ('Información calculada', {
+            'fields': ('numero_vanos_display', 'total_torres_display'),
+            'classes': ('collapse',)
+        }),
+        ('Observaciones', {
+            'fields': ('observaciones',)
+        }),
+        ('Auditoría', {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    readonly_fields = ('id', 'created_at', 'updated_at', 'numero_vanos_display', 'total_torres_display')
+
+    def numero_vanos_display(self, obj):
+        return obj.numero_vanos
+    numero_vanos_display.short_description = 'Número de vanos'
+
+    def total_torres_display(self, obj):
+        return obj.total_torres
+    total_torres_display.short_description = 'Total de torres'

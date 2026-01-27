@@ -2,11 +2,15 @@
 Views for activity management.
 """
 from typing import Any
+from datetime import date, timedelta
 
 from django.db.models import QuerySet
-from django.views.generic import ListView, DetailView, TemplateView, FormView
+from django.views.generic import ListView, DetailView, TemplateView, FormView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
 from apps.core.mixins import HTMXMixin, RoleRequiredMixin
 from .models import Actividad, ProgramacionMensual, TipoActividad
 
@@ -148,6 +152,95 @@ class ImportarProgramacionView(LoginRequiredMixin, RoleRequiredMixin, TemplateVi
     template_name = 'actividades/importar.html'
     allowed_roles = ['admin', 'director', 'coordinador']
 
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        from apps.lineas.models import Linea
+        context['lineas'] = Linea.objects.filter(activa=True)
+        context['anios'] = range(date.today().year - 1, date.today().year + 2)
+        context['meses'] = [
+            (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+            (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+            (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+        ]
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle Excel file upload and import."""
+        from .importers import ProgramaTranselcaImporter
+        from apps.lineas.models import Linea
+
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Debe seleccionar un archivo Excel')
+            return redirect('actividades:importar')
+
+        # Validar extensión
+        if not archivo.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, 'El archivo debe ser un Excel (.xlsx o .xls)')
+            return redirect('actividades:importar')
+
+        # Obtener parámetros
+        linea_id = request.POST.get('linea')
+        anio = request.POST.get('anio')
+        mes = request.POST.get('mes')
+        actualizar_existentes = request.POST.get('actualizar_existentes') == 'on'
+
+        if not all([linea_id, anio, mes]):
+            messages.error(request, 'Debe especificar línea, año y mes')
+            return redirect('actividades:importar')
+
+        try:
+            linea = Linea.objects.get(id=linea_id)
+            anio = int(anio)
+            mes = int(mes)
+        except (Linea.DoesNotExist, ValueError) as e:
+            messages.error(request, f'Error en parámetros: {e}')
+            return redirect('actividades:importar')
+
+        # Crear o obtener programación mensual
+        programacion, created = ProgramacionMensual.objects.get_or_create(
+            anio=anio,
+            mes=mes,
+            linea=linea,
+            defaults={
+                'archivo_origen': archivo,
+            }
+        )
+
+        if not created:
+            programacion.archivo_origen = archivo
+            programacion.save(update_fields=['archivo_origen', 'updated_at'])
+
+        # Importar
+        importer = ProgramaTranselcaImporter()
+        resultado = importer.importar(
+            archivo,
+            programacion,
+            opciones={'actualizar_existentes': actualizar_existentes}
+        )
+
+        if resultado['exito']:
+            mensaje = (
+                f"Importación exitosa: {resultado['actividades_creadas']} actividades creadas, "
+                f"{resultado['actividades_actualizadas']} actualizadas, "
+                f"{resultado['filas_omitidas']} filas omitidas."
+            )
+            if resultado['advertencias']:
+                mensaje += f" {len(resultado['advertencias'])} advertencias."
+            messages.success(request, mensaje)
+
+            # Guardar datos importados en la programación
+            programacion.datos_importados = {
+                'resultado': resultado,
+                'fecha_importacion': timezone.now().isoformat(),
+                'usuario': request.user.get_full_name(),
+            }
+            programacion.save(update_fields=['datos_importados', 'updated_at'])
+        else:
+            messages.error(request, f"Error en importación: {resultado.get('error', 'Error desconocido')}")
+
+        return redirect('actividades:programacion')
+
 
 class ActividadCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, TemplateView):
     """View for creating a new activity."""
@@ -190,7 +283,6 @@ class CambiarEstadoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
     allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor']
 
     def post(self, request, *args, **kwargs):
-        from django.http import JsonResponse
         actividad = self.get_object()
         nuevo_estado = request.POST.get('estado')
         if nuevo_estado in dict(Actividad.Estado.choices):
@@ -198,3 +290,93 @@ class CambiarEstadoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             actividad.save(update_fields=['estado', 'updated_at'])
             return JsonResponse({'success': True, 'estado': nuevo_estado})
         return JsonResponse({'success': False, 'error': 'Estado inválido'}, status=400)
+
+
+class ExportarProgramacionView(LoginRequiredMixin, RoleRequiredMixin, View):
+    """View for exporting weekly programming to Excel."""
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor']
+
+    def get(self, request, *args, **kwargs):
+        """Generate and download weekly programming Excel."""
+        from .exporters import ProgramacionSemanalExporter
+
+        # Obtener parámetros de fecha
+        fecha_inicio_str = request.GET.get('fecha_inicio')
+        fecha_fin_str = request.GET.get('fecha_fin')
+        linea_id = request.GET.get('linea')
+        cuadrilla_id = request.GET.get('cuadrilla')
+
+        # Calcular fechas (default: semana actual)
+        hoy = date.today()
+        if fecha_inicio_str:
+            try:
+                fecha_inicio = date.fromisoformat(fecha_inicio_str)
+            except ValueError:
+                fecha_inicio = hoy - timedelta(days=hoy.weekday())  # Lunes de esta semana
+        else:
+            fecha_inicio = hoy - timedelta(days=hoy.weekday())
+
+        if fecha_fin_str:
+            try:
+                fecha_fin = date.fromisoformat(fecha_fin_str)
+            except ValueError:
+                fecha_fin = fecha_inicio + timedelta(days=6)
+        else:
+            fecha_fin = fecha_inicio + timedelta(days=6)
+
+        # Generar Excel
+        exporter = ProgramacionSemanalExporter()
+        excel_content = exporter.generar_excel(
+            semana_inicio=fecha_inicio,
+            semana_fin=fecha_fin,
+            linea_id=linea_id,
+            cuadrilla_id=cuadrilla_id
+        )
+
+        # Preparar respuesta
+        filename = f"programacion_semanal_{fecha_inicio.strftime('%Y%m%d')}_{fecha_fin.strftime('%Y%m%d')}.xlsx"
+        response = HttpResponse(
+            excel_content.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+
+class ExportarAvanceView(LoginRequiredMixin, RoleRequiredMixin, View):
+    """View for exporting advance report to Excel."""
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente']
+
+    def get(self, request, *args, **kwargs):
+        """Generate and download advance report Excel."""
+        from .exporters import ReporteAvanceExporter
+
+        linea_id = request.GET.get('linea')
+        fecha_corte_str = request.GET.get('fecha_corte')
+
+        if not linea_id:
+            return JsonResponse({'error': 'Debe especificar una línea'}, status=400)
+
+        fecha_corte = None
+        if fecha_corte_str:
+            try:
+                fecha_corte = date.fromisoformat(fecha_corte_str)
+            except ValueError:
+                pass
+
+        try:
+            exporter = ReporteAvanceExporter()
+            excel_content = exporter.generar_excel(linea_id, fecha_corte)
+        except ValueError as e:
+            return JsonResponse({'error': str(e)}, status=404)
+
+        # Preparar respuesta
+        filename = f"reporte_avance_{date.today().strftime('%Y%m%d')}.xlsx"
+        response = HttpResponse(
+            excel_content.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response

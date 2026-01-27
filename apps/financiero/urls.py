@@ -12,4 +12,6 @@ urlpatterns = [
     path('presupuesto/<uuid:pk>/', views.PresupuestoDetailView.as_view(), name='presupuesto_detalle'),
     path('cuadro-costos/', views.CuadroCostosView.as_view(), name='cuadro_costos'),
     path('facturacion/', views.FacturacionView.as_view(), name='facturacion'),
+    path('costos-vs-produccion/', views.CostosVsProduccionDashboardView.as_view(), name='costos_vs_produccion'),
+    path('api/costos-vs-produccion/', views.CostosVsProduccionAPIView.as_view(), name='api_costos_vs_produccion'),
 ]

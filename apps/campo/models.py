@@ -16,6 +16,16 @@ class RegistroCampo(BaseModel):
     Captures all data from mobile app.
     """
 
+    class TipoPendiente(models.TextChoices):
+        ACCESO = 'ACCESO', 'Problema de acceso'
+        PERMISOS = 'PERMISOS', 'Falta de permisos'
+        CLIMA = 'CLIMA', 'Condiciones climáticas'
+        MATERIAL = 'MATERIAL', 'Falta de material'
+        EQUIPO = 'EQUIPO', 'Falta de equipo'
+        SEGURIDAD = 'SEGURIDAD', 'Condición de seguridad'
+        PROPIETARIO = 'PROPIETARIO', 'Problema con propietario'
+        OTRO = 'OTRO', 'Otro'
+
     actividad = models.ForeignKey(
         'actividades.Actividad',
         on_delete=models.CASCADE,
@@ -86,6 +96,34 @@ class RegistroCampo(BaseModel):
         help_text='Datos capturados según el tipo de actividad'
     )
 
+    # Progress tracking
+    porcentaje_avance_reportado = models.DecimalField(
+        'Porcentaje de avance reportado',
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text='Porcentaje de avance reportado en este registro (0-100)'
+    )
+
+    # Pendientes/condiciones especiales
+    tiene_pendiente = models.BooleanField(
+        'Tiene pendiente',
+        default=False,
+        help_text='Indica si hay algún pendiente o condición especial'
+    )
+    tipo_pendiente = models.CharField(
+        'Tipo de pendiente',
+        max_length=20,
+        choices=TipoPendiente.choices,
+        blank=True,
+        help_text='Clasificación del tipo de pendiente'
+    )
+    descripcion_pendiente = models.TextField(
+        'Descripción del pendiente',
+        blank=True,
+        help_text='Descripción detallada del pendiente o condición especial'
+    )
+
     # Observations
     observaciones = models.TextField(
         'Observaciones',
@@ -125,10 +163,25 @@ class RegistroCampo(BaseModel):
             models.Index(fields=['usuario'], name='idx_registro_usuario'),
             models.Index(fields=['fecha_inicio'], name='idx_registro_fecha'),
             models.Index(fields=['sincronizado'], name='idx_registro_sincronizado'),
+            models.Index(fields=['tiene_pendiente'], name='idx_registro_pendiente'),
         ]
 
     def __str__(self):
         return f"Registro {self.actividad} - {self.fecha_inicio.date()}"
+
+    def save(self, *args, **kwargs):
+        """Override save to update parent Actividad's porcentaje_avance."""
+        super().save(*args, **kwargs)
+        # Actualizar porcentaje_avance de la Actividad padre
+        if self.porcentaje_avance_reportado > 0:
+            self._actualizar_avance_actividad()
+
+    def _actualizar_avance_actividad(self):
+        """Actualiza el porcentaje de avance de la actividad padre."""
+        # El avance reportado en el registro reemplaza el avance de la actividad
+        # si es mayor al actual
+        if self.porcentaje_avance_reportado > self.actividad.porcentaje_avance:
+            self.actividad.actualizar_avance(self.porcentaje_avance_reportado)
 
     @property
     def duracion_minutos(self):

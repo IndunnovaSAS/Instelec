@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -53,7 +54,10 @@ class SyncManager {
       // 3. Upload pending evidence photos
       await _uploadEvidencias();
 
-      // 4. Process sync queue
+      // 4. Upload pending asistencias
+      await _uploadAsistencias();
+
+      // 5. Process sync queue
       await _processSyncQueue();
 
       _lastSyncTime = DateTime.now();
@@ -86,6 +90,12 @@ class SyncManager {
             estado: item['estado'],
             prioridad: item['prioridad'],
             camposFormulario: Value(jsonEncode(item['campos_formulario'])),
+            // New fields for Transelca integration
+            avisoSap: Value(item['aviso_sap'] ?? ''),
+            porcentajeAvance: Value((item['porcentaje_avance'] ?? 0).toDouble()),
+            valorFacturacion: Value((item['valor_facturacion'] ?? 0).toDouble()),
+            tramoCodigo: Value(item['tramo_codigo']),
+            tramoNombre: Value(item['tramo_nombre']),
           )).toList();
 
       await _db.insertActividades(actividades);
@@ -105,6 +115,11 @@ class SyncManager {
           'latitud_fin': r.latitudFin,
           'longitud_fin': r.longitudFin,
           'fecha_fin': r.fechaFin?.toIso8601String(),
+          // New fields for avance and pendientes
+          'porcentaje_avance_reportado': r.porcentajeAvanceReportado,
+          'tiene_pendiente': r.tienePendiente,
+          'tipo_pendiente': r.tipoPendiente,
+          'descripcion_pendiente': r.descripcionPendiente,
         }).toList();
 
     final response = await _api.syncRegistros(registrosData);
@@ -179,6 +194,46 @@ class SyncManager {
     }
   }
 
+  /// Upload pending asistencias
+  Future<void> _uploadAsistencias() async {
+    final asistencias = await _db.getAsistenciasNoSincronizadas();
+
+    if (asistencias.isEmpty) return;
+
+    for (final asistencia in asistencias) {
+      try {
+        final asistenciaData = {
+          'usuario_id': asistencia.usuarioId,
+          'cuadrilla_id': asistencia.cuadrillaId,
+          'fecha': asistencia.fecha.toIso8601String().split('T')[0],
+          'tipo_novedad': asistencia.tipoNovedad,
+          'hora_entrada': asistencia.horaEntrada,
+          'hora_salida': asistencia.horaSalida,
+          'observacion': asistencia.observacion,
+        };
+
+        final response = await _api.registrarAsistencia(asistenciaData);
+
+        if (response.statusCode == 200) {
+          await _db.marcarAsistenciaSincronizada(asistencia.id);
+        }
+      } catch (e) {
+        // Add to sync queue for retry
+        await _db.addToSyncQueue(SyncQueueCompanion.insert(
+          tipo: 'asistencia',
+          entidadId: asistencia.id,
+          datos: jsonEncode({
+            'usuario_id': asistencia.usuarioId,
+            'cuadrilla_id': asistencia.cuadrillaId,
+            'fecha': asistencia.fecha.toIso8601String().split('T')[0],
+            'tipo_novedad': asistencia.tipoNovedad,
+          }),
+          createdAt: DateTime.now(),
+        ));
+      }
+    }
+  }
+
   void _setStatus(SyncStatus status) {
     _status = status;
     _statusController.add(status);
@@ -188,6 +243,3 @@ class SyncManager {
     _statusController.close();
   }
 }
-
-// Need to import dart:io for File
-import 'dart:io';

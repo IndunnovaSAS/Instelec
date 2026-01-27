@@ -276,3 +276,95 @@ class PoligonoServidumbre(BaseModel):
             geom_projected = self.geometria.transform(3857, clone=True)
             self.area_hectareas = geom_projected.area / 10000  # m² to hectares
         super().save(*args, **kwargs)
+
+
+class Tramo(BaseModel):
+    """
+    Tramo = Rango de torres dentro de una línea.
+    Ej: Tramo "Sector Norte" = Torre 1 a Torre 25
+
+    Se utiliza para sectorizar las líneas de transmisión y facilitar
+    la programación de actividades por zonas.
+    """
+
+    linea = models.ForeignKey(
+        Linea,
+        on_delete=models.CASCADE,
+        related_name='tramos',
+        verbose_name='Línea'
+    )
+    codigo = models.CharField(
+        'Código',
+        max_length=20,
+        unique=True,
+        help_text='Código único del tramo (ej: TRM-001)'
+    )
+    nombre = models.CharField(
+        'Nombre',
+        max_length=100,
+        help_text='Nombre descriptivo del tramo (ej: Sector Norte)'
+    )
+    torre_inicio = models.ForeignKey(
+        Torre,
+        on_delete=models.PROTECT,
+        related_name='tramos_inicio',
+        verbose_name='Torre inicio'
+    )
+    torre_fin = models.ForeignKey(
+        Torre,
+        on_delete=models.PROTECT,
+        related_name='tramos_fin',
+        verbose_name='Torre fin'
+    )
+    observaciones = models.TextField(
+        'Observaciones',
+        blank=True
+    )
+
+    class Meta:
+        db_table = 'tramos'
+        verbose_name = 'Tramo'
+        verbose_name_plural = 'Tramos'
+        ordering = ['linea', 'codigo']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre} (T{self.torre_inicio.numero}-T{self.torre_fin.numero})"
+
+    @property
+    def numero_vanos(self):
+        """Calcula el número de vanos entre torre_inicio y torre_fin."""
+        try:
+            inicio = int(self.torre_inicio.numero)
+            fin = int(self.torre_fin.numero)
+            return abs(fin - inicio)
+        except (ValueError, TypeError):
+            return 0
+
+    @property
+    def torres_incluidas(self):
+        """Retorna queryset de torres en este tramo."""
+        try:
+            inicio = int(self.torre_inicio.numero)
+            fin = int(self.torre_fin.numero)
+            num_min = min(inicio, fin)
+            num_max = max(inicio, fin)
+            return Torre.objects.filter(
+                linea=self.linea,
+                numero__gte=str(num_min),
+                numero__lte=str(num_max)
+            )
+        except (ValueError, TypeError):
+            return Torre.objects.none()
+
+    @property
+    def total_torres(self):
+        """Número total de torres en el tramo."""
+        return self.numero_vanos + 1
+
+    def clean(self):
+        """Validación del modelo."""
+        from django.core.exceptions import ValidationError
+        if self.torre_inicio.linea != self.linea or self.torre_fin.linea != self.linea:
+            raise ValidationError(
+                'Las torres de inicio y fin deben pertenecer a la misma línea del tramo.'
+            )

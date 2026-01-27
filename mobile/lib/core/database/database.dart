@@ -25,6 +25,12 @@ class Actividades extends Table {
   TextColumn get camposFormulario => text().nullable()();
   BoolColumn get sincronizado => boolean().withDefault(const Constant(false))();
   DateTimeColumn get updatedAt => dateTime().nullable()();
+  // New fields for Transelca integration
+  TextColumn get avisoSap => text().withDefault(const Constant(''))();
+  RealColumn get porcentajeAvance => real().withDefault(const Constant(0.0))();
+  RealColumn get valorFacturacion => real().withDefault(const Constant(0.0))();
+  TextColumn get tramoCodigo => text().nullable()();
+  TextColumn get tramoNombre => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -45,6 +51,11 @@ class RegistrosCampo extends Table {
   TextColumn get observaciones => text().withDefault(const Constant(''))();
   BoolColumn get sincronizado => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
+  // New fields for avance and pendientes
+  RealColumn get porcentajeAvanceReportado => real().withDefault(const Constant(0.0))();
+  BoolColumn get tienePendiente => boolean().withDefault(const Constant(false))();
+  TextColumn get tipoPendiente => text().withDefault(const Constant(''))();
+  TextColumn get descripcionPendiente => text().withDefault(const Constant(''))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -68,7 +79,7 @@ class Evidencias extends Table {
 
 class SyncQueue extends Table {
   IntColumn get id => integer().autoIncrement()();
-  TextColumn get tipo => text()(); // registro, evidencia
+  TextColumn get tipo => text()(); // registro, evidencia, asistencia
   TextColumn get entidadId => text()();
   TextColumn get datos => text()();
   IntColumn get intentos => integer().withDefault(const Constant(0))();
@@ -77,7 +88,48 @@ class SyncQueue extends Table {
   DateTimeColumn get lastAttempt => dateTime().nullable()();
 }
 
-@DriftDatabase(tables: [Actividades, RegistrosCampo, Evidencias, SyncQueue])
+/// Asistencia diaria del personal de cuadrillas
+class Asistencias extends Table {
+  TextColumn get id => text()();
+  TextColumn get usuarioId => text()();
+  TextColumn get usuarioNombre => text()();
+  TextColumn get cuadrillaId => text()();
+  TextColumn get cuadrillaCodigo => text()();
+  DateTimeColumn get fecha => dateTime()();
+  TextColumn get tipoNovedad => text().withDefault(const Constant('PRESENTE'))();
+  TextColumn get horaEntrada => text().nullable()(); // Stored as HH:mm string
+  TextColumn get horaSalida => text().nullable()(); // Stored as HH:mm string
+  TextColumn get observacion => text().withDefault(const Constant(''))();
+  BoolColumn get sincronizado => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Miembros de cuadrilla (para mostrar en pantalla de asistencia)
+class CuadrillaMiembros extends Table {
+  TextColumn get id => text()();
+  TextColumn get cuadrillaId => text()();
+  TextColumn get usuarioId => text()();
+  TextColumn get usuarioNombre => text()();
+  TextColumn get usuarioCedula => text().nullable()();
+  TextColumn get usuarioTelefono => text().nullable()();
+  TextColumn get rolCuadrilla => text()();
+  BoolColumn get activo => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [
+  Actividades,
+  RegistrosCampo,
+  Evidencias,
+  SyncQueue,
+  Asistencias,
+  CuadrillaMiembros,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -156,6 +208,78 @@ class AppDatabase extends _$AppDatabase {
         intentos: syncQueue.intentos + const Variable(1),
         error: Value(error),
         lastAttempt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  // Asistencias queries
+  Future<List<Asistencia>> getAsistenciasPorFecha(DateTime fecha) {
+    final startOfDay = DateTime(fecha.year, fecha.month, fecha.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    return (select(asistencias)
+          ..where((a) =>
+              a.fecha.isBiggerOrEqualValue(startOfDay) &
+              a.fecha.isSmallerThanValue(endOfDay)))
+        .get();
+  }
+
+  Future<List<Asistencia>> getAsistenciasNoSincronizadas() {
+    return (select(asistencias)..where((a) => a.sincronizado.equals(false)))
+        .get();
+  }
+
+  Future<void> insertAsistencia(AsistenciasCompanion asistencia) {
+    return into(asistencias).insertOnConflictUpdate(asistencia);
+  }
+
+  Future<void> marcarAsistenciaSincronizada(String id) {
+    return (update(asistencias)..where((a) => a.id.equals(id)))
+        .write(const AsistenciasCompanion(sincronizado: Value(true)));
+  }
+
+  Future<void> insertAsistencias(List<AsistenciasCompanion> items) async {
+    await batch((batch) {
+      batch.insertAllOnConflictUpdate(asistencias, items);
+    });
+  }
+
+  // CuadrillaMiembros queries
+  Future<List<CuadrillaMiembro>> getMiembrosCuadrilla(String cuadrillaId) {
+    return (select(cuadrillaMiembros)
+          ..where((m) => m.cuadrillaId.equals(cuadrillaId) & m.activo.equals(true)))
+        .get();
+  }
+
+  Future<void> insertMiembrosCuadrilla(List<CuadrillaMiembrosCompanion> items) async {
+    await batch((batch) {
+      batch.insertAllOnConflictUpdate(cuadrillaMiembros, items);
+    });
+  }
+
+  // Update registro with avance and pendientes
+  Future<void> updateRegistroAvance(
+    String id, {
+    required double porcentajeAvance,
+    required bool tienePendiente,
+    String? tipoPendiente,
+    String? descripcionPendiente,
+  }) {
+    return (update(registrosCampo)..where((r) => r.id.equals(id))).write(
+      RegistrosCampoCompanion(
+        porcentajeAvanceReportado: Value(porcentajeAvance),
+        tienePendiente: Value(tienePendiente),
+        tipoPendiente: Value(tipoPendiente ?? ''),
+        descripcionPendiente: Value(descripcionPendiente ?? ''),
+      ),
+    );
+  }
+
+  // Update actividad avance (after sync)
+  Future<void> updateActividadAvance(String id, double porcentajeAvance) {
+    return (update(actividades)..where((a) => a.id.equals(id))).write(
+      ActividadesCompanion(
+        porcentajeAvance: Value(porcentajeAvance),
+        updatedAt: Value(DateTime.now()),
       ),
     );
   }
