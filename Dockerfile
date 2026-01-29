@@ -1,37 +1,35 @@
 # =============================================================================
 # Dockerfile for TransMaint Django Application
-# Optimized multi-stage build for Google Cloud Run
+# Using official GDAL image for GeoDjango support
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# Stage 1: Builder - Install dependencies
+# Stage 1: Builder - Install Python dependencies
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS builder
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.8.5 AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install build dependencies
+# Install Python and build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    python3-dev \
     build-essential \
     libpq-dev \
-    libgdal-dev \
-    libgeos-dev \
-    libproj-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Set GDAL environment variables for compilation
-ENV CPLUS_INCLUDE_PATH=/usr/include/gdal \
-    C_INCLUDE_PATH=/usr/include/gdal
 
 WORKDIR /build
 
-# Install Python dependencies to a virtual environment
-RUN python -m venv /opt/venv
+# Create and activate virtual environment
+RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Copy and install requirements
 COPY requirements/ requirements/
 RUN pip install --upgrade pip wheel && \
     pip install -r requirements/production.txt
@@ -39,75 +37,60 @@ RUN pip install --upgrade pip wheel && \
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime - Production image
 # -----------------------------------------------------------------------------
-FROM python:3.12-slim-bookworm AS runtime
+FROM ghcr.io/osgeo/gdal:ubuntu-small-3.8.5 AS runtime
 
-# Labels for container registry
 LABEL maintainer="Instelec Ingeniería S.A.S." \
       app.name="transmaint" \
       app.description="Sistema de Gestión de Mantenimiento de Líneas de Transmisión"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    # Django settings
     DJANGO_SETTINGS_MODULE=config.settings.production \
-    # Port for Cloud Run
     PORT=8080 \
-    # Python path
     PATH="/opt/venv/bin:$PATH" \
-    # Gunicorn settings
     GUNICORN_WORKERS=2 \
     GUNICORN_THREADS=4 \
     GUNICORN_TIMEOUT=120
 
-# Install runtime dependencies only (no build tools)
-# Package names for Debian Bookworm
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-venv \
     libpq5 \
-    gdal-bin \
-    libgdal34 \
-    libgeos3.12.1 \
-    libproj25 \
     curl \
     # WeasyPrint dependencies
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
+    libgdk-pixbuf2.0-0 \
     libffi-dev \
     shared-mime-info \
-    # Clean up
+    fonts-liberation \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Create non-root user for security
+# Create non-root user
 RUN useradd -m -u 1000 -s /bin/bash appuser
 
 # Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
 
-# Set work directory
 WORKDIR /app
 
 # Copy application code
 COPY --chown=appuser:appuser . .
 
-# Create necessary directories
+# Create directories and collect static files
 RUN mkdir -p /app/staticfiles /app/mediafiles /app/logs && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    python3 manage.py collectstatic --noinput || true
 
-# Collect static files (done at build time for faster startup)
-RUN python manage.py collectstatic --noinput || true
-
-# Switch to non-root user
 USER appuser
 
-# Expose port
 EXPOSE 8080
 
-# Health check for Cloud Run and load balancers
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -sf http://localhost:${PORT}/api/health/ || exit 1
 
-# Start gunicorn with optimized settings for Cloud Run
 CMD exec gunicorn config.wsgi:application \
     --bind 0.0.0.0:${PORT} \
     --workers ${GUNICORN_WORKERS} \
