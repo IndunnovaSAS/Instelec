@@ -84,7 +84,12 @@ COPY --chown=appuser:appuser . .
 # Create directories and collect static files
 RUN mkdir -p /app/staticfiles /app/mediafiles /app/logs && \
     chown -R appuser:appuser /app && \
-    python3 manage.py collectstatic --noinput || true
+    SECRET_KEY=build-time-key \
+    DB_NAME=dummy \
+    DB_USER=dummy \
+    DB_PASSWORD=dummy \
+    DB_HOST=localhost \
+    python3 manage.py collectstatic --noinput
 
 USER appuser
 

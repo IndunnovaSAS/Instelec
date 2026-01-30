@@ -1,0 +1,25 @@
+================================================================================
+                    INSTELEC - CREDENCIALES DE PRODUCCION
+================================================================================
+
+URLS DE ACCESO
+--------------
+Dashboard:      https://instelec-api-rvfp6uj2va-uc.a.run.app/
+Login:          https://instelec-api-rvfp6uj2va-uc.a.run.app/usuarios/login/
+Admin Django:   https://instelec-api-rvfp6uj2va-uc.a.run.app/admin/
+API Health:     https://instelec-api-rvfp6uj2va-uc.a.run.app/api/health/
+
+CREDENCIALES ADMINISTRADOR
+--------------------------
+Email:          admin@instelec.com.co
+Contraseña:     Instelec2026!
+
+INFORMACION TECNICA
+-------------------
+Servicio:       Cloud Run (instelec-api)
+Region:         us-central1
+Base de datos:  Cloud SQL (postgres-consolidated)
+DB Name:        instelec_db
+
+Fecha de creacion: 2026-01-30
+================================================================================
