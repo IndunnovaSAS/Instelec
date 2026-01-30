@@ -13,6 +13,8 @@ env:
   PROJECT_ID: appsindunnova
   REGION: us-central1
   SERVICE_NAME: instelec-api
+  REGISTRY: us-central1-docker.pkg.dev
+  IMAGE_NAME: us-central1-docker.pkg.dev/appsindunnova/cloud-run-source-deploy/instelec-api
   DB_INSTANCE: appsindunnova:us-central1:postgres-consolidated
 
 jobs:
@@ -37,10 +39,25 @@ jobs:
         with:
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Deploy to Cloud Run (Source-based)
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }},${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run
         run: |
           gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --source . \
+            --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
@@ -68,7 +85,7 @@ jobs:
       - name: Run Migrations
         run: |
           gcloud run jobs deploy instelec-migrate \
-            --source . \
+            --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --region ${{ env.REGION }} \
             --set-cloudsql-instances=${{ env.DB_INSTANCE }} \
             --set-env-vars="DJANGO_SETTINGS_MODULE=config.settings.production" \
@@ -78,7 +95,7 @@ jobs:
             --set-env-vars="DB_PORT=5432" \
             --set-env-vars="DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
             --set-env-vars="SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" \
-            --command="python,manage.py,migrate,--noinput" \
+            --command="python3,manage.py,migrate,--noinput" \
             --memory=512Mi \
             --cpu=1 \
             --task-timeout=600 \
@@ -96,9 +113,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Service URL:** $URL" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Cost Optimizations:" >> $GITHUB_STEP_SUMMARY
+          echo "### Optimizations:" >> $GITHUB_STEP_SUMMARY
+          echo "- Docker layer caching (faster builds)" >> $GITHUB_STEP_SUMMARY
           echo "- Scale to zero (min-instances=0)" >> $GITHUB_STEP_SUMMARY
           echo "- 512MB RAM / 1 CPU" >> $GITHUB_STEP_SUMMARY
           echo "- Max 2 instances" >> $GITHUB_STEP_SUMMARY
-          echo "- Shared Consolidated DB" >> $GITHUB_STEP_SUMMARY
-          echo "- No Redis (local memory cache)" >> $GITHUB_STEP_SUMMARY
