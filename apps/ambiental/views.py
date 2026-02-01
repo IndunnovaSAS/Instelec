@@ -18,6 +18,14 @@ class InformeListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
     def get_queryset(self):
         return super().get_queryset().select_related('linea', 'elaborado_por')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        informes = self.get_queryset()
+        context['borradores'] = informes.filter(estado='BORRADOR').count()
+        context['aprobados'] = informes.filter(estado='APROBADO').count()
+        context['enviados'] = informes.filter(estado='ENVIADO').count()
+        return context
+
 
 class InformeDetailView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
     """Detail view for an environmental report."""
