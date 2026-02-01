@@ -25,6 +25,7 @@ DJANGO_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.gis',  # GeoDjango
+    'django.contrib.humanize',  # For intcomma, naturaltime filters
 ]
 
 THIRD_PARTY_APPS = [
