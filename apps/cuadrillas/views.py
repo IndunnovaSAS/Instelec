@@ -120,3 +120,53 @@ class CuadrillaCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Temp
         context['supervisores'] = Usuario.objects.filter(rol='supervisor', is_active=True)
         context['lineas'] = Linea.objects.filter(activa=True)
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle form submission to create a new crew."""
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        from apps.usuarios.models import Usuario
+        from apps.lineas.models import Linea
+
+        codigo = request.POST.get('codigo', '').strip()
+        nombre = request.POST.get('nombre', '').strip()
+        supervisor_id = request.POST.get('supervisor') or None
+        linea_id = request.POST.get('linea_asignada') or None
+
+        # Validation
+        if not codigo or not nombre:
+            messages.error(request, 'Código y nombre son obligatorios.')
+            return self.get(request, *args, **kwargs)
+
+        if Cuadrilla.objects.filter(codigo=codigo).exists():
+            messages.error(request, f'Ya existe una cuadrilla con el código {codigo}.')
+            return self.get(request, *args, **kwargs)
+
+        # Get related objects
+        supervisor = None
+        if supervisor_id:
+            try:
+                supervisor = Usuario.objects.get(pk=supervisor_id)
+            except Usuario.DoesNotExist:
+                pass
+
+        linea_asignada = None
+        if linea_id:
+            try:
+                linea_asignada = Linea.objects.get(pk=linea_id)
+            except Linea.DoesNotExist:
+                pass
+
+        # Create the crew
+        try:
+            cuadrilla = Cuadrilla.objects.create(
+                codigo=codigo,
+                nombre=nombre,
+                supervisor=supervisor,
+                linea_asignada=linea_asignada,
+            )
+            messages.success(request, f'Cuadrilla {cuadrilla.codigo} creada exitosamente.')
+            return redirect('cuadrillas:detalle', pk=cuadrilla.pk)
+        except Exception as e:
+            messages.error(request, f'Error al crear la cuadrilla: {str(e)}')
+            return self.get(request, *args, **kwargs)
