@@ -154,4 +154,42 @@ class LineaCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Template
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['clientes'] = Linea.Cliente.choices
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle form submission to create a new transmission line."""
+        from django.shortcuts import redirect
+        from django.contrib import messages
+
+        codigo = request.POST.get('codigo', '').strip()
+        nombre = request.POST.get('nombre', '').strip()
+        cliente = request.POST.get('cliente', '').strip()
+        tension_kv = request.POST.get('voltaje') or None
+        longitud_km = request.POST.get('longitud_km') or None
+        observaciones = request.POST.get('descripcion', '').strip()
+
+        # Validation
+        if not codigo or not nombre:
+            messages.error(request, 'Código y nombre son obligatorios.')
+            return self.get(request, *args, **kwargs)
+
+        if Linea.objects.filter(codigo=codigo).exists():
+            messages.error(request, f'Ya existe una línea con el código {codigo}.')
+            return self.get(request, *args, **kwargs)
+
+        # Create the line
+        try:
+            linea = Linea.objects.create(
+                codigo=codigo,
+                nombre=nombre,
+                cliente=cliente if cliente in dict(Linea.Cliente.choices) else Linea.Cliente.TRANSELCA,
+                tension_kv=int(tension_kv) if tension_kv else None,
+                longitud_km=float(longitud_km) if longitud_km else None,
+                observaciones=observaciones,
+            )
+            messages.success(request, f'Línea {linea.codigo} creada exitosamente.')
+            return redirect('lineas:detalle', pk=linea.pk)
+        except Exception as e:
+            messages.error(request, f'Error al crear la línea: {str(e)}')
+            return self.get(request, *args, **kwargs)
