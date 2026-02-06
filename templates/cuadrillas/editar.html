@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Editar {{ cuadrilla.codigo }} - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'cuadrillas:detalle' cuadrilla.id %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Editar Cuadrilla</h1>
+            <p class="text-gray-600 dark:text-gray-400">{{ cuadrilla.codigo }} - {{ cuadrilla.nombre }}</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Identificacion -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Identificacion</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="codigo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Codigo *
+                        </label>
+                        <input type="text" name="codigo" id="codigo" required maxlength="20"
+                               value="{{ cuadrilla.codigo }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Nombre *
+                        </label>
+                        <input type="text" name="nombre" id="nombre" required maxlength="100"
+                               value="{{ cuadrilla.nombre }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Asignacion -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Asignacion</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="supervisor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Supervisor
+                        </label>
+                        <select name="supervisor" id="supervisor"
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <option value="">Sin asignar</option>
+                            {% for sup in supervisores %}
+                            <option value="{{ sup.id }}" {% if cuadrilla.supervisor and sup.id == cuadrilla.supervisor.id %}selected{% endif %}>
+                                {{ sup.get_full_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="vehiculo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Vehiculo
+                        </label>
+                        <select name="vehiculo" id="vehiculo"
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <option value="">Sin asignar</option>
+                            {% for veh in vehiculos %}
+                            <option value="{{ veh.id }}" {% if cuadrilla.vehiculo and veh.id == cuadrilla.vehiculo.id %}selected{% endif %}>
+                                {{ veh.placa }} - {{ veh.marca }} {{ veh.modelo }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="linea_asignada" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Linea Asignada
+                        </label>
+                        <select name="linea_asignada" id="linea_asignada"
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <option value="">Sin asignar</option>
+                            {% for linea in lineas %}
+                            <option value="{{ linea.id }}" {% if cuadrilla.linea_asignada and linea.id == cuadrilla.linea_asignada.id %}selected{% endif %}>
+                                {{ linea.codigo }} - {{ linea.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estado y Observaciones -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Estado</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" name="activa" id="activa"
+                               {% if cuadrilla.activa %}checked{% endif %}
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
+                        <label for="activa" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Cuadrilla activa
+                        </label>
+                    </div>
+
+                    <div>
+                        <label for="observaciones" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Observaciones
+                        </label>
+                        <textarea name="observaciones" id="observaciones" rows="3"
+                                  class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">{{ cuadrilla.observaciones }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'cuadrillas:detalle' cuadrilla.id %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

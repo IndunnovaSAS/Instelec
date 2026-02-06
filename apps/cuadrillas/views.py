@@ -1,11 +1,13 @@
 """
 Views for crew management.
 """
+from django.shortcuts import redirect
+from django.contrib import messages
 from django.views.generic import ListView, DetailView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from apps.core.mixins import HTMXMixin, RoleRequiredMixin
-from .models import Cuadrilla, TrackingUbicacion
+from .models import Cuadrilla, Vehiculo, TrackingUbicacion
 
 
 class CuadrillaListView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, ListView):
@@ -62,6 +64,66 @@ class CuadrillaDetailView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Deta
         context['ultima_ubicacion'] = ultima_ubicacion
 
         return context
+
+
+class CuadrillaEditView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, DetailView):
+    """View for editing a crew."""
+    model = Cuadrilla
+    template_name = 'cuadrillas/editar.html'
+    context_object_name = 'cuadrilla'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        from apps.usuarios.models import Usuario
+        from apps.lineas.models import Linea
+        context['supervisores'] = Usuario.objects.filter(rol='supervisor', is_active=True)
+        context['lineas'] = Linea.objects.filter(activa=True)
+        context['vehiculos'] = Vehiculo.objects.filter(activo=True)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle form submission to update a crew."""
+        from apps.usuarios.models import Usuario
+        from apps.lineas.models import Linea
+
+        cuadrilla = self.get_object()
+
+        codigo = request.POST.get('codigo', '').strip()
+        nombre = request.POST.get('nombre', '').strip()
+
+        if not codigo or not nombre:
+            messages.error(request, 'Código y nombre son obligatorios.')
+            return self.get(request, *args, **kwargs)
+
+        if Cuadrilla.objects.filter(codigo=codigo).exclude(pk=cuadrilla.pk).exists():
+            messages.error(request, f'Ya existe otra cuadrilla con el código {codigo}.')
+            return self.get(request, *args, **kwargs)
+
+        try:
+            cuadrilla.codigo = codigo
+            cuadrilla.nombre = nombre
+
+            supervisor_id = request.POST.get('supervisor') or None
+            cuadrilla.supervisor = Usuario.objects.get(pk=supervisor_id) if supervisor_id else None
+
+            vehiculo_id = request.POST.get('vehiculo') or None
+            cuadrilla.vehiculo = Vehiculo.objects.get(pk=vehiculo_id) if vehiculo_id else None
+
+            linea_id = request.POST.get('linea_asignada') or None
+            cuadrilla.linea_asignada = Linea.objects.get(pk=linea_id) if linea_id else None
+
+            cuadrilla.activa = request.POST.get('activa') == 'on'
+            cuadrilla.observaciones = request.POST.get('observaciones', '').strip()
+            cuadrilla.save()
+            messages.success(request, f'Cuadrilla {cuadrilla.codigo} actualizada exitosamente.')
+            return redirect('cuadrillas:detalle', pk=cuadrilla.pk)
+        except (Usuario.DoesNotExist, Linea.DoesNotExist, Vehiculo.DoesNotExist) as e:
+            messages.error(request, f'Referencia inválida: {str(e)}')
+            return self.get(request, *args, **kwargs)
+        except Exception as e:
+            messages.error(request, f'Error al actualizar la cuadrilla: {str(e)}')
+            return self.get(request, *args, **kwargs)
 
 
 class MapaCuadrillasView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
