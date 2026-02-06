@@ -11,21 +11,91 @@ from .models import Cuadrilla, Vehiculo, TrackingUbicacion
 
 
 class CuadrillaListView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, ListView):
-    """List all crews."""
+    """List all crews, organized by week."""
     model = Cuadrilla
     template_name = 'cuadrillas/lista.html'
     partial_template_name = 'cuadrillas/partials/lista_cuadrillas.html'
     context_object_name = 'cuadrillas'
+    paginate_by = None
     allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor']
 
+    @staticmethod
+    def _parse_semana(codigo):
+        """Extract (week, year) from code format WW-YYYY-XXX."""
+        try:
+            parts = codigo.split('-')
+            if len(parts) >= 2:
+                semana = int(parts[0])
+                ano = int(parts[1])
+                if 1 <= semana <= 53 and 2000 <= ano <= 2100:
+                    return semana, ano
+        except (ValueError, IndexError):
+            pass
+        return None, None
+
     def get_queryset(self):
-        return Cuadrilla.objects.filter(activa=True).select_related(
+        qs = Cuadrilla.objects.filter(activa=True).select_related(
             'supervisor', 'vehiculo', 'linea_asignada'
         ).prefetch_related('miembros__usuario')
 
+        # Filter by week if parameter provided
+        semana_param = self.request.GET.get('semana', '').strip()
+        if semana_param:
+            # Format: WW-YYYY
+            try:
+                parts = semana_param.split('-')
+                sem = parts[0].zfill(2)
+                ano = parts[1]
+                qs = qs.filter(codigo__startswith=f'{sem}-{ano}-')
+            except (IndexError, ValueError):
+                pass
+
+        return qs
+
     def get_context_data(self, **kwargs):
         import json
+        from collections import OrderedDict
         context = super().get_context_data(**kwargs)
+
+        # Build list of available weeks from all active cuadrillas
+        todas = Cuadrilla.objects.filter(activa=True).values_list('codigo', flat=True)
+        semanas_set = set()
+        for codigo in todas:
+            sem, ano = self._parse_semana(codigo)
+            if sem is not None:
+                semanas_set.add((ano, sem))
+
+        # Sort descending: most recent first
+        semanas_disponibles = sorted(semanas_set, reverse=True)
+        context['semanas_disponibles'] = [
+            {'value': f'{s[1]}-{s[0]}', 'label': f'Semana {s[1]} - {s[0]}'}
+            for s in semanas_disponibles
+        ]
+
+        # Current filter
+        semana_param = self.request.GET.get('semana', '').strip()
+        context['semana_actual'] = semana_param
+
+        # Group cuadrillas by week for display
+        cuadrillas_por_semana = OrderedDict()
+        sin_semana = []
+        for cuadrilla in context['cuadrillas']:
+            sem, ano = self._parse_semana(cuadrilla.codigo)
+            if sem is not None:
+                key = f'Semana {sem} - {ano}'
+                cuadrillas_por_semana.setdefault(key, []).append(cuadrilla)
+            else:
+                sin_semana.append(cuadrilla)
+
+        if sin_semana:
+            cuadrillas_por_semana['Otras'] = sin_semana
+
+        context['cuadrillas_por_semana'] = cuadrillas_por_semana
+
+        # Stats
+        all_active = Cuadrilla.objects.filter(activa=True)
+        context['total_cuadrillas'] = all_active.count()
+        context['cuadrillas_activas'] = all_active.count()
 
         # Get latest location for each active crew for the mini-map
         ubicaciones = []
