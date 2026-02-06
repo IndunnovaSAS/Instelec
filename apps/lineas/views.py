@@ -1,6 +1,8 @@
 """
 Views for transmission lines.
 """
+from django.shortcuts import redirect
+from django.contrib import messages
 from django.views.generic import ListView, DetailView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from apps.core.mixins import HTMXMixin, RoleRequiredMixin
@@ -44,6 +46,62 @@ class LineaDetailView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, DetailVi
         context['torres'] = self.object.torres.all()[:50]
         context['total_torres'] = self.object.torres.count()
         return context
+
+
+class LineaEditView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, DetailView):
+    """View for editing a transmission line."""
+    model = Linea
+    template_name = 'lineas/editar.html'
+    context_object_name = 'linea'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['clientes'] = Linea.Cliente.choices
+        context['contratistas'] = Linea.Contratista.choices
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle form submission to update a transmission line."""
+        linea = self.get_object()
+
+        codigo = request.POST.get('codigo', '').strip()
+        nombre = request.POST.get('nombre', '').strip()
+
+        if not codigo or not nombre:
+            messages.error(request, 'Código y nombre son obligatorios.')
+            return self.get(request, *args, **kwargs)
+
+        # Check unique codigo (excluding current object)
+        if Linea.objects.filter(codigo=codigo).exclude(pk=linea.pk).exists():
+            messages.error(request, f'Ya existe otra línea con el código {codigo}.')
+            return self.get(request, *args, **kwargs)
+
+        try:
+            linea.codigo = codigo
+            linea.nombre = nombre
+            linea.codigo_transelca = request.POST.get('codigo_transelca', '').strip()
+            linea.circuito = request.POST.get('circuito', '').strip()
+            cliente = request.POST.get('cliente', '').strip()
+            linea.cliente = cliente if cliente in dict(Linea.Cliente.choices) else linea.cliente
+            contratista = request.POST.get('contratista', '').strip()
+            linea.contratista = contratista if contratista in dict(Linea.Contratista.choices) else ''
+            linea.centro_emplazamiento = request.POST.get('centro_emplazamiento', '').strip()
+            linea.puesto_trabajo = request.POST.get('puesto_trabajo', '').strip()
+            tension_kv = request.POST.get('tension_kv') or None
+            linea.tension_kv = int(tension_kv) if tension_kv else None
+            longitud_km = request.POST.get('longitud_km') or None
+            linea.longitud_km = float(longitud_km) if longitud_km else None
+            linea.departamento = request.POST.get('departamento', '').strip()
+            linea.municipios = request.POST.get('municipios', '').strip()
+            linea.activa = request.POST.get('activa') == 'on'
+            linea.observaciones = request.POST.get('observaciones', '').strip()
+            linea.save()
+            messages.success(request, f'Línea {linea.codigo} actualizada exitosamente.')
+            return redirect('lineas:detalle', pk=linea.pk)
+        except Exception as e:
+            messages.error(request, f'Error al actualizar la línea: {str(e)}')
+            return self.get(request, *args, **kwargs)
 
 
 class TorresLineaView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, ListView):

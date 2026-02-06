@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}Editar {{ linea.codigo }} - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'lineas:detalle' linea.id %}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Editar Linea</h1>
+            <p class="text-gray-600 dark:text-gray-400">{{ linea.codigo }} - {{ linea.nombre }}</p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Identificacion -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Identificacion</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label for="codigo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Codigo *
+                        </label>
+                        <input type="text" name="codigo" id="codigo" required maxlength="20"
+                               value="{{ linea.codigo }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Nombre *
+                        </label>
+                        <input type="text" name="nombre" id="nombre" required maxlength="150"
+                               value="{{ linea.nombre }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label for="codigo_transelca" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Codigo Transelca
+                        </label>
+                        <input type="text" name="codigo_transelca" id="codigo_transelca" maxlength="30"
+                               value="{{ linea.codigo_transelca }}"
+                               placeholder="Ej: 801/802, 5156/5157"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label for="circuito" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Circuito
+                        </label>
+                        <input type="text" name="circuito" id="circuito" maxlength="20"
+                               value="{{ linea.circuito }}"
+                               placeholder="Ej: 801, 802"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operacion -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Operacion</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label for="cliente" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Cliente
+                        </label>
+                        <select name="cliente" id="cliente"
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            {% for value, label in clientes %}
+                            <option value="{{ value }}" {% if value == linea.cliente %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="contratista" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Contratista
+                        </label>
+                        <select name="contratista" id="contratista"
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <option value="">Sin asignar</option>
+                            {% for value, label in contratistas %}
+                            <option value="{{ value }}" {% if value == linea.contratista %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="tension_kv" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Tension (kV)
+                        </label>
+                        <input type="number" name="tension_kv" id="tension_kv" min="0"
+                               value="{{ linea.tension_kv|default_if_none:'' }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label for="longitud_km" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Longitud (km)
+                        </label>
+                        <input type="number" name="longitud_km" id="longitud_km" step="0.01" min="0"
+                               value="{{ linea.longitud_km|default_if_none:'' }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- SAP -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Codigos SAP</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="centro_emplazamiento" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Centro de Emplazamiento
+                        </label>
+                        <input type="text" name="centro_emplazamiento" id="centro_emplazamiento" maxlength="20"
+                               value="{{ linea.centro_emplazamiento }}"
+                               placeholder="Ej: TR01"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label for="puesto_trabajo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Puesto de Trabajo
+                        </label>
+                        <input type="text" name="puesto_trabajo" id="puesto_trabajo" maxlength="20"
+                               value="{{ linea.puesto_trabajo }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ubicacion -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Ubicacion</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="departamento" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Departamento
+                        </label>
+                        <input type="text" name="departamento" id="departamento" maxlength="100"
+                               value="{{ linea.departamento }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <div>
+                        <label for="municipios" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Municipios
+                        </label>
+                        <input type="text" name="municipios" id="municipios" maxlength="500"
+                               value="{{ linea.municipios }}"
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estado y Observaciones -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Estado</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" name="activa" id="activa"
+                               {% if linea.activa %}checked{% endif %}
+                               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
+                        <label for="activa" class="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Linea activa
+                        </label>
+                    </div>
+
+                    <div>
+                        <label for="observaciones" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Observaciones
+                        </label>
+                        <textarea name="observaciones" id="observaciones" rows="3"
+                                  class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">{{ linea.observaciones }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'lineas:detalle' linea.id %}"
+                   class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Cancelar
+                </a>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

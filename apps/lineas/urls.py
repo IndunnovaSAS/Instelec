@@ -10,6 +10,7 @@ urlpatterns = [
     path('', views.LineaListView.as_view(), name='lista'),
     path('crear/', views.LineaCreateView.as_view(), name='crear'),
     path('<uuid:pk>/', views.LineaDetailView.as_view(), name='detalle'),
+    path('<uuid:pk>/editar/', views.LineaEditView.as_view(), name='editar'),
     path('<uuid:pk>/torres/', views.TorresLineaView.as_view(), name='torres'),
     path('torre/<uuid:pk>/', views.TorreDetailView.as_view(), name='torre_detalle'),
     path('mapa/', views.MapaLineasView.as_view(), name='mapa'),
