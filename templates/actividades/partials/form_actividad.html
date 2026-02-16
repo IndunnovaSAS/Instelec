@@ -17,10 +17,10 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label for="tipo_actividad" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Tipo de Actividad
+                        <label for="modal-tipo_actividad" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Tipo de Actividad <span class="text-red-500">*</span>
                         </label>
-                        <select name="tipo_actividad" id="tipo_actividad" required
+                        <select name="tipo_actividad" id="modal-tipo_actividad" required
                                 class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                             <option value="">Seleccionar...</option>
                             {% for tipo in tipos %}
@@ -30,11 +30,28 @@
                     </div>
 
                     <div>
-                        <label for="linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Linea
+                        <label for="modal-linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Linea <span class="text-red-500">*</span>
                         </label>
-                        <select name="linea" id="linea" required
-                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <select name="linea" id="modal-linea" required
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                                x-data
+                                @change="
+                                    const lineaId = $el.value;
+                                    const torreSelect = document.getElementById('modal-torre');
+                                    if (!lineaId) { torreSelect.innerHTML = '<option value=\'\'>Seleccione una linea primero</option>'; return; }
+                                    fetch(`/actividades/api/torres-por-linea/${lineaId}/`)
+                                        .then(r => r.json())
+                                        .then(torres => {
+                                            torreSelect.innerHTML = '<option value=\'\'>Seleccionar torre...</option>';
+                                            torres.forEach(t => {
+                                                const opt = document.createElement('option');
+                                                opt.value = t.id;
+                                                opt.textContent = `Torre ${t.numero}`;
+                                                torreSelect.appendChild(opt);
+                                            });
+                                        });
+                                ">
                             <option value="">Seleccionar...</option>
                             {% for linea in lineas %}
                             <option value="{{ linea.id }}">{{ linea.codigo }} - {{ linea.nombre }}</option>
@@ -43,10 +60,20 @@
                     </div>
 
                     <div>
-                        <label for="cuadrilla" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label for="modal-torre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Torre <span class="text-red-500">*</span>
+                        </label>
+                        <select name="torre" id="modal-torre" required
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                            <option value="">Seleccione una linea primero</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="modal-cuadrilla" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Cuadrilla
                         </label>
-                        <select name="cuadrilla" id="cuadrilla"
+                        <select name="cuadrilla" id="modal-cuadrilla"
                                 class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                             <option value="">Sin asignar</option>
                             {% for cuadrilla in cuadrillas %}
@@ -56,21 +83,30 @@
                     </div>
 
                     <div>
-                        <label for="fecha_programada" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Fecha Programada
+                        <label for="modal-fecha_programada" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Fecha Programada <span class="text-red-500">*</span>
                         </label>
-                        <input type="date" name="fecha_programada" id="fecha_programada" required
+                        <input type="date" name="fecha_programada" id="modal-fecha_programada" required
+                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                    </div>
+
+                    <div>
+                        <label for="modal-aviso_sap" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Aviso SAP
+                        </label>
+                        <input type="text" name="aviso_sap" id="modal-aviso_sap" maxlength="20"
+                               placeholder="Numero de aviso SAP"
                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                     </div>
                 </div>
 
                 <div>
-                    <label for="descripcion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Descripcion
+                    <label for="modal-observaciones" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Observaciones
                     </label>
-                    <textarea name="descripcion" id="descripcion" rows="3"
+                    <textarea name="observaciones_programacion" id="modal-observaciones" rows="3"
                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
-                              placeholder="Descripcion de la actividad..."></textarea>
+                              placeholder="Observaciones de la actividad..."></textarea>
                 </div>
 
                 <div class="flex justify-end gap-3 pt-4">

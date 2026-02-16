@@ -17,6 +17,16 @@
         </div>
     </div>
 
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="p-3 rounded-lg text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 dark:bg-red-900 dark:text-red-200{% elif message.tags == 'success' %}bg-green-50 text-green-800 dark:bg-green-900 dark:text-green-200{% else %}bg-blue-50 text-blue-800 dark:bg-blue-900 dark:text-blue-200{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- Form -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <form method="post" class="space-y-6">
@@ -103,6 +113,17 @@
                            value="{{ actividad.hora_inicio_estimada|time:'H:i' }}"
                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                 </div>
+
+                <!-- Aviso SAP -->
+                <div>
+                    <label for="aviso_sap" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Aviso SAP
+                    </label>
+                    <input type="text" name="aviso_sap" id="aviso_sap" maxlength="20"
+                           value="{{ actividad.aviso_sap }}"
+                           placeholder="Numero de aviso SAP"
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                </div>
             </div>
 
             <!-- Observaciones -->
@@ -112,6 +133,16 @@
                 </label>
                 <textarea name="observaciones_programacion" id="observaciones_programacion" rows="3"
                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">{{ actividad.observaciones_programacion }}</textarea>
+            </div>
+
+            <!-- Comentarios / Restricciones -->
+            <div>
+                <label for="comentarios_restricciones" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Comentarios / Restricciones
+                </label>
+                <textarea name="comentarios_restricciones" id="comentarios_restricciones" rows="3"
+                          class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                          placeholder="Restricciones operativas, accesos, permisos o notas del campo...">{{ actividad.comentarios_restricciones }}</textarea>
             </div>
 
             <!-- Buttons -->

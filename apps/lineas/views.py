@@ -204,6 +204,66 @@ class MapaLineasView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
         return context
 
 
+class ImportarKMZView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
+    """View for importing towers from KMZ/KML files."""
+    template_name = 'lineas/importar_kmz.html'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['lineas'] = Linea.objects.filter(activa=True)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        from django.contrib import messages
+        from .importers import KMZImporter
+
+        archivo = request.FILES.get('archivo')
+        if not archivo:
+            messages.error(request, 'Debe seleccionar un archivo KMZ o KML.')
+            return redirect('lineas:importar_kmz')
+
+        if not archivo.name.lower().endswith(('.kmz', '.kml')):
+            messages.error(request, 'El archivo debe ser un KMZ o KML.')
+            return redirect('lineas:importar_kmz')
+
+        linea_id = request.POST.get('linea')
+        if not linea_id:
+            messages.error(request, 'Debe seleccionar una linea.')
+            return redirect('lineas:importar_kmz')
+
+        try:
+            linea = Linea.objects.get(id=linea_id)
+        except Linea.DoesNotExist:
+            messages.error(request, 'Linea no encontrada.')
+            return redirect('lineas:importar_kmz')
+
+        actualizar = request.POST.get('actualizar_existentes') == 'on'
+
+        importer = KMZImporter()
+        resultado = importer.importar(
+            archivo, linea,
+            opciones={'actualizar_existentes': actualizar}
+        )
+
+        if resultado['exito']:
+            mensaje = (
+                f"Importacion exitosa: {resultado['torres_creadas']} torres creadas, "
+                f"{resultado['torres_actualizadas']} actualizadas."
+            )
+            if resultado['advertencias']:
+                mensaje += f" {len(resultado['advertencias'])} advertencias."
+            messages.success(request, mensaje)
+
+            if resultado['advertencias']:
+                for adv in resultado['advertencias'][:5]:
+                    messages.warning(request, adv)
+        else:
+            messages.error(request, resultado.get('error', 'Error desconocido'))
+
+        return redirect('lineas:detalle', pk=linea.pk)
+
+
 class LineaCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, TemplateView):
     """View for creating a new transmission line."""
     template_name = 'lineas/crear.html'

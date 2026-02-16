@@ -379,3 +379,51 @@ class CostoActividad(BaseModel):
             self.costo_materiales +
             self.otros_costos
         )
+
+
+class ChecklistFacturacion(BaseModel):
+    """
+    Checklist for tracking billing status of completed activities.
+    """
+
+    actividad = models.ForeignKey(
+        'actividades.Actividad',
+        on_delete=models.CASCADE,
+        related_name='checklist_facturacion',
+        verbose_name='Actividad'
+    )
+    ciclo_facturacion = models.ForeignKey(
+        CicloFacturacion,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='checklist_items',
+        verbose_name='Ciclo de facturacion'
+    )
+    facturado = models.BooleanField(
+        'Facturado',
+        default=False
+    )
+    fecha_facturacion = models.DateField(
+        'Fecha de facturacion',
+        null=True,
+        blank=True
+    )
+    observaciones = models.TextField(
+        'Observaciones',
+        blank=True
+    )
+
+    class Meta:
+        db_table = 'checklist_facturacion'
+        verbose_name = 'Checklist de Facturacion'
+        verbose_name_plural = 'Checklists de Facturacion'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['facturado']),
+            models.Index(fields=['actividad']),
+        ]
+
+    def __str__(self):
+        estado = 'Facturado' if self.facturado else 'Pendiente'
+        return f"{self.actividad} - {estado}"

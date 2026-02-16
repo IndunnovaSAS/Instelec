@@ -14,4 +14,5 @@ urlpatterns = [
     path('<uuid:pk>/torres/', views.TorresLineaView.as_view(), name='torres'),
     path('torre/<uuid:pk>/', views.TorreDetailView.as_view(), name='torre_detalle'),
     path('mapa/', views.MapaLineasView.as_view(), name='mapa'),
+    path('importar-kmz/', views.ImportarKMZView.as_view(), name='importar_kmz'),
 ]

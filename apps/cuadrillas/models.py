@@ -329,6 +329,26 @@ class Asistencia(BaseModel):
         blank=True,
         help_text='Observaciones adicionales sobre la asistencia'
     )
+    viaticos = models.DecimalField(
+        'Viáticos',
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text='Costo de viáticos del día'
+    )
+    horas_extra = models.DecimalField(
+        'Horas extra',
+        max_digits=4,
+        decimal_places=1,
+        default=0,
+        blank=True,
+        help_text='Horas extra trabajadas en el día'
+    )
+    viatico_aplica = models.BooleanField(
+        'Viático aplica',
+        default=False,
+        help_text='Indica si el día aplica viático (Sí/No)'
+    )
     registrado_por = models.ForeignKey(
         'usuarios.Usuario',
         on_delete=models.SET_NULL,

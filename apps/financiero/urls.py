@@ -15,4 +15,6 @@ urlpatterns = [
     path('costos-cuadrilla/', views.CostosCuadrillaView.as_view(), name='costos_cuadrilla'),
     path('costos-vs-produccion/', views.CostosVsProduccionDashboardView.as_view(), name='costos_vs_produccion'),
     path('api/costos-vs-produccion/', views.CostosVsProduccionAPIView.as_view(), name='api_costos_vs_produccion'),
+    path('checklist-facturacion/', views.ChecklistFacturacionView.as_view(), name='checklist_facturacion'),
+    path('checklist-facturacion/<uuid:pk>/toggle/', views.ToggleFacturadoView.as_view(), name='toggle_facturado'),
 ]

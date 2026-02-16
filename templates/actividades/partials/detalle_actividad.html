@@ -152,6 +152,27 @@
 </section>
 {% endif %}
 
+<!-- Comentarios / Restricciones -->
+<section class="mt-4" aria-labelledby="restricciones-heading">
+    <div class="flex items-center justify-between mb-2">
+        <h4 id="restricciones-heading" class="text-sm font-medium text-gray-500 dark:text-gray-400">Comentarios / Restricciones</h4>
+        <button hx-get="{% url 'actividades:editar_restricciones' actividad.id %}"
+                hx-target="#modal-container"
+                hx-swap="innerHTML"
+                class="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800 rounded transition"
+                type="button">
+            {% if actividad.comentarios_restricciones %}Editar{% else %}Agregar{% endif %}
+        </button>
+    </div>
+    {% if actividad.comentarios_restricciones %}
+    <p class="text-sm text-gray-600 dark:text-gray-400 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+        {{ actividad.comentarios_restricciones }}
+    </p>
+    {% else %}
+    <p class="text-sm text-gray-400 italic">Sin restricciones registradas</p>
+    {% endif %}
+</section>
+
 <!-- Acciones -->
 <nav class="mt-4 flex justify-end gap-2" aria-label="Acciones de la actividad">
     <a href="{% url 'actividades:editar' actividad.id %}"

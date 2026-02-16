@@ -8,7 +8,7 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Actividades</h1>
-            <p class="text-gray-600 dark:text-gray-400">Gestión de actividades programadas</p>
+            <p class="text-gray-600 dark:text-gray-400">Gestion de actividades programadas</p>
         </div>
         <div class="flex gap-2">
             <button hx-get="{% url 'actividades:crear' %}"
@@ -27,53 +27,98 @@
 
     <!-- Filters -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <form hx-get="{% url 'actividades:lista' %}"
+        <form id="filtros-form"
+              hx-get="{% url 'actividades:lista' %}"
               hx-target="#actividades-container"
               hx-swap="innerHTML"
               hx-trigger="change, submit"
-              class="grid grid-cols-1 md:grid-cols-4 gap-4"
               role="search"
               aria-label="Filtros de actividades">
 
-            <div>
-                <label for="filter-linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linea</label>
-                <select name="linea" id="filter-linea" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                    <option value="">Todas las lineas</option>
-                    {% for linea in lineas %}
-                    <option value="{{ linea.id }}" {% if request.GET.linea == linea.id|stringformat:"s" %}selected{% endif %}>
-                        {{ linea.codigo }}
-                    </option>
-                    {% endfor %}
-                </select>
+            <!-- Search bar -->
+            <div class="mb-4">
+                <label for="buscar-aviso" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Buscar por Aviso SAP
+                </label>
+                <input type="text" name="buscar_aviso" id="buscar-aviso"
+                       value="{{ request.GET.buscar_aviso }}"
+                       placeholder="Ingrese numero de aviso SAP..."
+                       hx-get="{% url 'actividades:lista' %}"
+                       hx-target="#actividades-container"
+                       hx-swap="innerHTML"
+                       hx-trigger="keyup changed delay:300ms"
+                       hx-include="#filtros-form"
+                       class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 text-lg px-4 py-3"
+                       aria-label="Buscar por numero de aviso SAP">
             </div>
 
-            <div>
-                <label for="filter-estado" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
-                <select name="estado" id="filter-estado" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                    <option value="">Todos</option>
-                    <option value="PENDIENTE" {% if request.GET.estado == "PENDIENTE" %}selected{% endif %}>Pendiente</option>
-                    <option value="EN_CURSO" {% if request.GET.estado == "EN_CURSO" %}selected{% endif %}>En Curso</option>
-                    <option value="COMPLETADA" {% if request.GET.estado == "COMPLETADA" %}selected{% endif %}>Completada</option>
-                    <option value="CANCELADA" {% if request.GET.estado == "CANCELADA" %}selected{% endif %}>Cancelada</option>
-                </select>
-            </div>
+            <!-- Filter grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                <div>
+                    <label for="filter-linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Linea</label>
+                    <select name="linea" id="filter-linea" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Todas las lineas</option>
+                        {% for linea in lineas %}
+                        <option value="{{ linea.id }}" {% if request.GET.linea == linea.id|stringformat:"s" %}selected{% endif %}>
+                            {{ linea.codigo }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <div>
-                <label for="filter-cuadrilla" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cuadrilla</label>
-                <select name="cuadrilla" id="filter-cuadrilla" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
-                    <option value="">Todas</option>
-                    {% for cuadrilla in cuadrillas %}
-                    <option value="{{ cuadrilla.id }}" {% if request.GET.cuadrilla == cuadrilla.id|stringformat:"s" %}selected{% endif %}>
-                        {{ cuadrilla.nombre }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
+                <div>
+                    <label for="filter-estado" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estado</label>
+                    <select name="estado" id="filter-estado" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Todos</option>
+                        {% for value, label in estados %}
+                        <option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <div>
-                <label for="filter-fecha" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha</label>
-                <input type="date" name="fecha" id="filter-fecha" value="{{ request.GET.fecha }}"
-                       class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                <div>
+                    <label for="filter-tipo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo Actividad</label>
+                    <select name="tipo_actividad" id="filter-tipo" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Todos</option>
+                        {% for tipo in tipos %}
+                        <option value="{{ tipo.id }}" {% if request.GET.tipo_actividad == tipo.id|stringformat:"s" %}selected{% endif %}>
+                            {{ tipo.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filter-cuadrilla" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cuadrilla</label>
+                    <select name="cuadrilla" id="filter-cuadrilla" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Todas</option>
+                        {% for cuadrilla in cuadrillas %}
+                        <option value="{{ cuadrilla.id }}" {% if request.GET.cuadrilla == cuadrilla.id|stringformat:"s" %}selected{% endif %}>
+                            {{ cuadrilla.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filter-mes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mes</label>
+                    <select name="mes" id="filter-mes" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Todos</option>
+                        {% for num, nombre in meses %}
+                        <option value="{{ num }}" {% if request.GET.mes == num|stringformat:"s" %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filter-anio" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ano</label>
+                    <select name="anio" id="filter-anio" class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Todos</option>
+                        {% for a in anios %}
+                        <option value="{{ a }}" {% if request.GET.anio == a|stringformat:"s" %}selected{% endif %}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </form>
     </div>

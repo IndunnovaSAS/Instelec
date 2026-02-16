@@ -311,6 +311,11 @@ class Actividad(BaseModel):
         'Motivo de cancelación',
         blank=True
     )
+    comentarios_restricciones = models.TextField(
+        'Comentarios / Restricciones',
+        blank=True,
+        help_text='Restricciones operativas, accesos, permisos o notas del campo'
+    )
 
     class Meta:
         db_table = 'actividades'

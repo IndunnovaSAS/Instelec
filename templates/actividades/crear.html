@@ -10,13 +10,23 @@
             <p class="text-gray-600 dark:text-gray-400">Crear una nueva actividad programada</p>
         </div>
 
+        {% if messages %}
+        <div class="mb-4 space-y-2">
+            {% for message in messages %}
+            <div class="p-3 rounded-lg text-sm {% if message.tags == 'error' %}bg-red-50 text-red-800 dark:bg-red-900 dark:text-red-200{% else %}bg-green-50 text-green-800 dark:bg-green-900 dark:text-green-200{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <form method="post" class="space-y-4">
             {% csrf_token %}
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="tipo_actividad" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Tipo de Actividad
+                        Tipo de Actividad <span class="text-red-500">*</span>
                     </label>
                     <select name="tipo_actividad" id="tipo_actividad" required
                             class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
@@ -29,14 +39,44 @@
 
                 <div>
                     <label for="linea" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Linea
+                        Linea <span class="text-red-500">*</span>
                     </label>
                     <select name="linea" id="linea" required
-                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
+                            hx-get=""
+                            hx-trigger="change"
+                            hx-swap="none"
+                            x-data
+                            @change="
+                                const lineaId = $el.value;
+                                const torreSelect = document.getElementById('torre');
+                                if (!lineaId) { torreSelect.innerHTML = '<option value=\'\'>Seleccione una linea primero</option>'; return; }
+                                fetch(`/actividades/api/torres-por-linea/${lineaId}/`)
+                                    .then(r => r.json())
+                                    .then(torres => {
+                                        torreSelect.innerHTML = '<option value=\'\'>Seleccionar torre...</option>';
+                                        torres.forEach(t => {
+                                            const opt = document.createElement('option');
+                                            opt.value = t.id;
+                                            opt.textContent = `Torre ${t.numero}`;
+                                            torreSelect.appendChild(opt);
+                                        });
+                                    });
+                            ">
                         <option value="">Seleccionar...</option>
                         {% for linea in lineas %}
                         <option value="{{ linea.id }}">{{ linea.codigo }} - {{ linea.nombre }}</option>
                         {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="torre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Torre <span class="text-red-500">*</span>
+                    </label>
+                    <select name="torre" id="torre" required
+                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                        <option value="">Seleccione una linea primero</option>
                     </select>
                 </div>
 
@@ -55,20 +95,29 @@
 
                 <div>
                     <label for="fecha_programada" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Fecha Programada
+                        Fecha Programada <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="fecha_programada" id="fecha_programada" required
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
+                </div>
+
+                <div>
+                    <label for="aviso_sap" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Aviso SAP
+                    </label>
+                    <input type="text" name="aviso_sap" id="aviso_sap" maxlength="20"
+                           placeholder="Numero de aviso SAP"
                            class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700">
                 </div>
             </div>
 
             <div>
-                <label for="descripcion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Descripcion
+                <label for="observaciones_programacion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Observaciones
                 </label>
-                <textarea name="descripcion" id="descripcion" rows="3"
+                <textarea name="observaciones_programacion" id="observaciones_programacion" rows="3"
                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700"
-                          placeholder="Descripcion de la actividad..."></textarea>
+                          placeholder="Observaciones de la actividad..."></textarea>
             </div>
 
             <div class="flex justify-end gap-3 pt-4">

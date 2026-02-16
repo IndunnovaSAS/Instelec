@@ -618,8 +618,25 @@ def create_json_validator(validate_func):
 
 # Pre-built Django validators
 campos_formulario_validator = create_json_validator(validate_campos_formulario)
+campos_formulario_validator.__name__ = 'campos_formulario_validator'
+campos_formulario_validator.__qualname__ = 'campos_formulario_validator'
+
 datos_importados_validator = create_json_validator(validate_datos_importados)
+datos_importados_validator.__name__ = 'datos_importados_validator'
+datos_importados_validator.__qualname__ = 'datos_importados_validator'
+
 datos_formulario_validator = create_json_validator(validate_datos_formulario)
+datos_formulario_validator.__name__ = 'datos_formulario_validator'
+datos_formulario_validator.__qualname__ = 'datos_formulario_validator'
+
 validacion_ia_validator = create_json_validator(validate_validacion_ia)
+validacion_ia_validator.__name__ = 'validacion_ia_validator'
+validacion_ia_validator.__qualname__ = 'validacion_ia_validator'
+
 metadata_exif_validator = create_json_validator(validate_metadata_exif)
+metadata_exif_validator.__name__ = 'metadata_exif_validator'
+metadata_exif_validator.__qualname__ = 'metadata_exif_validator'
+
 resumen_indicadores_validator = create_json_validator(validate_resumen_indicadores)
+resumen_indicadores_validator.__name__ = 'resumen_indicadores_validator'
+resumen_indicadores_validator.__qualname__ = 'resumen_indicadores_validator'

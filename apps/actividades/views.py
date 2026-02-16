@@ -2,9 +2,10 @@
 Views for activity management.
 """
 from typing import Any
+from uuid import UUID
 from datetime import date, timedelta
 
-from django.db.models import QuerySet
+from django.db.models import QuerySet, Count, Q
 from django.views.generic import ListView, DetailView, TemplateView, FormView, View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils import timezone
@@ -26,45 +27,98 @@ class ActividadListView(LoginRequiredMixin, HTMXMixin, ListView):
     def get_queryset(self) -> QuerySet[Actividad]:
         qs = super().get_queryset().select_related(
             'linea', 'torre', 'tipo_actividad', 'cuadrilla'
-        ).prefetch_related('registros_campo')
+        ).defer(
+            'observaciones_programacion', 'motivo_reprogramacion',
+            'motivo_cancelacion',
+        )
+
+        # Search by aviso SAP
+        buscar_aviso = self.request.GET.get('buscar_aviso', '').strip()
+        if buscar_aviso:
+            qs = qs.filter(aviso_sap__icontains=buscar_aviso)
 
         # Filters
         estado = self.request.GET.get('estado')
-        if estado:
+        if estado and estado in dict(Actividad.Estado.choices):
             qs = qs.filter(estado=estado)
 
         linea = self.request.GET.get('linea')
         if linea:
-            from uuid import UUID
             try:
                 UUID(linea)
                 qs = qs.filter(linea_id=linea)
             except ValueError:
-                pass  # Invalid UUID, ignore filter
+                pass
 
         cuadrilla = self.request.GET.get('cuadrilla')
         if cuadrilla:
-            from uuid import UUID
             try:
                 UUID(cuadrilla)
                 qs = qs.filter(cuadrilla_id=cuadrilla)
             except ValueError:
-                pass  # Invalid UUID, ignore filter
+                pass
 
-        fecha_desde = self.request.GET.get('fecha_desde')
-        if fecha_desde:
-            qs = qs.filter(fecha_programada__gte=fecha_desde)
+        tipo_actividad = self.request.GET.get('tipo_actividad')
+        if tipo_actividad:
+            try:
+                UUID(tipo_actividad)
+                qs = qs.filter(tipo_actividad_id=tipo_actividad)
+            except ValueError:
+                pass
 
-        fecha_hasta = self.request.GET.get('fecha_hasta')
-        if fecha_hasta:
-            qs = qs.filter(fecha_programada__lte=fecha_hasta)
+        # Month/year filter
+        mes = self.request.GET.get('mes')
+        if mes:
+            try:
+                qs = qs.filter(fecha_programada__month=int(mes))
+            except (ValueError, TypeError):
+                pass
 
+        anio = self.request.GET.get('anio')
+        if anio:
+            try:
+                qs = qs.filter(fecha_programada__year=int(anio))
+            except (ValueError, TypeError):
+                pass
+
+        # Store for stats calculation
+        self._filtered_qs = qs
         return qs
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
+
+        from apps.lineas.models import Linea
+        from apps.cuadrillas.models import Cuadrilla
+
         context['estados'] = Actividad.Estado.choices
         context['tipos'] = TipoActividad.objects.filter(activo=True)
+        context['lineas'] = Linea.objects.filter(activa=True)
+        context['cuadrillas'] = Cuadrilla.objects.filter(activa=True)
+
+        # Month/year selector options
+        context['meses'] = [
+            (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+            (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+            (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+        ]
+        context['anios'] = range(date.today().year - 1, date.today().year + 2)
+
+        # Progress stats from filtered queryset (before pagination)
+        qs = getattr(self, '_filtered_qs', self.get_queryset())
+        stats = qs.aggregate(
+            total=Count('id'),
+            ejecutadas=Count('id', filter=Q(estado='COMPLETADA')),
+            pendientes=Count('id', filter=Q(estado__in=['PENDIENTE', 'PROGRAMADA'])),
+            en_curso=Count('id', filter=Q(estado='EN_CURSO')),
+            canceladas=Count('id', filter=Q(estado__in=['CANCELADA', 'REPROGRAMADA'])),
+        )
+        context['stats'] = stats
+        total = stats['total'] or 0
+        context['porcentaje_ejecucion'] = (
+            round((stats['ejecutadas'] / total) * 100, 1) if total > 0 else 0
+        )
+
         return context
 
 
@@ -242,6 +296,20 @@ class ImportarProgramacionView(LoginRequiredMixin, RoleRequiredMixin, TemplateVi
         return redirect('actividades:programacion')
 
 
+class TorresParaLineaView(LoginRequiredMixin, View):
+    """JSON endpoint to get torres for a specific linea (HTMX dynamic select)."""
+
+    def get(self, request, linea_id, *args, **kwargs):
+        from apps.lineas.models import Torre
+        try:
+            UUID(str(linea_id))
+        except ValueError:
+            return JsonResponse([], safe=False)
+
+        torres = Torre.objects.filter(linea_id=linea_id).order_by('numero').values('id', 'numero')
+        return JsonResponse(list(torres), safe=False)
+
+
 class ActividadCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, TemplateView):
     """View for creating a new activity."""
     template_name = 'actividades/crear.html'
@@ -256,6 +324,62 @@ class ActividadCreateView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Temp
         context['lineas'] = Linea.objects.filter(activa=True)
         context['cuadrillas'] = Cuadrilla.objects.filter(activa=True)
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle activity creation."""
+        from apps.lineas.models import Linea, Torre
+        from apps.cuadrillas.models import Cuadrilla
+
+        tipo_actividad_id = request.POST.get('tipo_actividad')
+        linea_id = request.POST.get('linea')
+        torre_id = request.POST.get('torre')
+        cuadrilla_id = request.POST.get('cuadrilla') or None
+        fecha_programada = request.POST.get('fecha_programada')
+        aviso_sap = request.POST.get('aviso_sap', '').strip()
+        observaciones = request.POST.get('observaciones_programacion', '').strip()
+
+        # Validation
+        if not all([tipo_actividad_id, linea_id, torre_id, fecha_programada]):
+            messages.error(request, 'Tipo de actividad, linea, torre y fecha son obligatorios.')
+            return self.get(request, *args, **kwargs)
+
+        try:
+            tipo_actividad = TipoActividad.objects.get(id=tipo_actividad_id)
+            linea = Linea.objects.get(id=linea_id)
+            torre = Torre.objects.get(id=torre_id)
+        except (TipoActividad.DoesNotExist, Linea.DoesNotExist, Torre.DoesNotExist):
+            messages.error(request, 'Tipo de actividad, linea o torre no validos.')
+            return self.get(request, *args, **kwargs)
+
+        # Validate torre belongs to linea
+        if torre.linea_id != linea.id:
+            messages.error(request, 'La torre seleccionada no pertenece a la linea.')
+            return self.get(request, *args, **kwargs)
+
+        cuadrilla = None
+        if cuadrilla_id:
+            try:
+                cuadrilla = Cuadrilla.objects.get(id=cuadrilla_id)
+            except Cuadrilla.DoesNotExist:
+                pass
+
+        try:
+            actividad = Actividad.objects.create(
+                tipo_actividad=tipo_actividad,
+                linea=linea,
+                torre=torre,
+                cuadrilla=cuadrilla,
+                fecha_programada=fecha_programada,
+                aviso_sap=aviso_sap,
+                observaciones_programacion=observaciones,
+                estado=Actividad.Estado.PENDIENTE,
+                prioridad=Actividad.Prioridad.NORMAL,
+            )
+            messages.success(request, f'Actividad creada exitosamente.')
+            return redirect('actividades:detalle', pk=actividad.pk)
+        except Exception as e:
+            messages.error(request, f'Error al guardar: {str(e)}')
+            return self.get(request, *args, **kwargs)
 
 
 class ActividadEditView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, DetailView):
@@ -275,6 +399,55 @@ class ActividadEditView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Detail
         context['lineas'] = Linea.objects.filter(activa=True)
         context['cuadrillas'] = Cuadrilla.objects.filter(activa=True)
         return context
+
+    def post(self, request, *args, **kwargs):
+        """Handle activity update."""
+        actividad = self.get_object()
+
+        tipo_actividad_id = request.POST.get('tipo_actividad')
+        estado = request.POST.get('estado', '').strip()
+        prioridad = request.POST.get('prioridad', '').strip()
+        cuadrilla_id = request.POST.get('cuadrilla') or None
+        fecha_programada = request.POST.get('fecha_programada')
+        hora_inicio = request.POST.get('hora_inicio_estimada') or None
+        aviso_sap = request.POST.get('aviso_sap', '').strip()
+        observaciones = request.POST.get('observaciones_programacion', '').strip()
+
+        if not fecha_programada:
+            messages.error(request, 'La fecha programada es obligatoria.')
+            return self.get(request, *args, **kwargs)
+
+        try:
+            if tipo_actividad_id:
+                actividad.tipo_actividad = TipoActividad.objects.get(id=tipo_actividad_id)
+
+            if estado and estado in dict(Actividad.Estado.choices):
+                actividad.estado = estado
+
+            if prioridad and prioridad in dict(Actividad.Prioridad.choices):
+                actividad.prioridad = prioridad
+
+            if cuadrilla_id:
+                from apps.cuadrillas.models import Cuadrilla
+                try:
+                    actividad.cuadrilla = Cuadrilla.objects.get(id=cuadrilla_id)
+                except Cuadrilla.DoesNotExist:
+                    pass
+            else:
+                actividad.cuadrilla = None
+
+            actividad.fecha_programada = fecha_programada
+            actividad.hora_inicio_estimada = hora_inicio
+            actividad.aviso_sap = aviso_sap
+            actividad.observaciones_programacion = observaciones
+            actividad.comentarios_restricciones = request.POST.get('comentarios_restricciones', '').strip()
+
+            actividad.save()
+            messages.success(request, 'Actividad actualizada exitosamente.')
+            return redirect('actividades:detalle', pk=actividad.pk)
+        except Exception as e:
+            messages.error(request, f'Error al guardar: {str(e)}')
+            return self.get(request, *args, **kwargs)
 
 
 class CambiarEstadoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
@@ -465,3 +638,28 @@ class ActividadDetalleModalView(LoginRequiredMixin, DetailView):
         return super().get_queryset().select_related(
             'linea', 'torre', 'tipo_actividad', 'cuadrilla'
         )
+
+
+class EditarRestriccionesView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """Quick edit modal for activity restrictions/comments."""
+    model = Actividad
+    template_name = 'actividades/partials/modal_restricciones.html'
+    context_object_name = 'actividad'
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor']
+
+    def post(self, request, *args, **kwargs):
+        import json
+        actividad = self.get_object()
+        actividad.comentarios_restricciones = request.POST.get('comentarios_restricciones', '')
+        actividad.save(update_fields=['comentarios_restricciones', 'updated_at'])
+
+        if request.headers.get('HX-Request'):
+            response = HttpResponse()
+            response['HX-Trigger'] = json.dumps({
+                'showToast': {'message': 'Restricciones actualizadas', 'type': 'success'},
+                'closeModal': True,
+            })
+            return response
+
+        messages.success(request, 'Restricciones actualizadas exitosamente.')
+        return redirect('actividades:detalle', pk=actividad.pk)

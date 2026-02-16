@@ -37,11 +37,27 @@
 
                     <div>
                         <label for="nombre" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Nombre *
+                            Actividad *
                         </label>
-                        <input type="text" name="nombre" id="nombre" required maxlength="100"
-                               value="{{ cuadrilla.nombre }}"
-                               class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                        <select name="nombre" id="nombre" required
+                                class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                            <option value="">Seleccionar actividad...</option>
+                            <option value="Servidumbre Completa" {% if cuadrilla.nombre == "Servidumbre Completa" %}selected{% endif %}>Servidumbre Completa</option>
+                            <option value="Servidumbre Vanos Criticos" {% if cuadrilla.nombre == "Servidumbre Vanos Criticos" %}selected{% endif %}>Servidumbre Vanos Criticos</option>
+                            <option value="Servidumbre Vanos Especiales" {% if cuadrilla.nombre == "Servidumbre Vanos Especiales" %}selected{% endif %}>Servidumbre Vanos Especiales</option>
+                            <option value="MPT" {% if cuadrilla.nombre == "MPT" %}selected{% endif %}>MPT</option>
+                            <option value="Avisos SC" {% if cuadrilla.nombre == "Avisos SC" %}selected{% endif %}>Avisos SC</option>
+                            <option value="Avisos CC" {% if cuadrilla.nombre == "Avisos CC" %}selected{% endif %}>Avisos CC</option>
+                            <option value="Apoyo IG" {% if cuadrilla.nombre == "Apoyo IG" %}selected{% endif %}>Apoyo IG</option>
+                            <option value="Apoyo Termografía" {% if cuadrilla.nombre == "Apoyo Termografía" %}selected{% endif %}>Apoyo Termografía</option>
+                            <option value="Apoyo Sede técnica" {% if cuadrilla.nombre == "Apoyo Sede técnica" %}selected{% endif %}>Apoyo Sede técnica</option>
+                            <option value="Apoyo SE Com BAQ" {% if cuadrilla.nombre == "Apoyo SE Com BAQ" %}selected{% endif %}>Apoyo SE Com BAQ</option>
+                            <option value="Apoyo SE COM VALL" {% if cuadrilla.nombre == "Apoyo SE COM VALL" %}selected{% endif %}>Apoyo SE COM VALL</option>
+                            <option value="Apoyo SE Com CTG" {% if cuadrilla.nombre == "Apoyo SE Com CTG" %}selected{% endif %}>Apoyo SE Com CTG</option>
+                            <option value="Reposición de Anguleria Hurtado" {% if cuadrilla.nombre == "Reposición de Anguleria Hurtado" %}selected{% endif %}>Reposición de Anguleria Hurtado</option>
+                            <option value="Inspección de Anguleria Hurtada" {% if cuadrilla.nombre == "Inspección de Anguleria Hurtada" %}selected{% endif %}>Inspección de Anguleria Hurtada</option>
+                            <option value="Servidumbre GERE" {% if cuadrilla.nombre == "Servidumbre GERE" %}selected{% endif %}>Servidumbre GERE</option>
+                        </select>
                     </div>
                 </div>
             </div>

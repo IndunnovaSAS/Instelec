@@ -1,0 +1,48 @@
+# Lightweight local development requirements (no GDAL/PostGIS/Redis needed)
+Django>=5.1,<5.2
+python-decouple>=3.8
+
+# Django Extensions
+django-extensions>=3.2
+django-filter>=23.5
+django-widget-tweaks>=1.5
+
+# REST API
+djangorestframework>=3.15
+django-ninja>=1.0
+drf-spectacular>=0.27
+
+# JWT Authentication
+djangorestframework-simplejwt>=5.3
+
+# Security
+django-axes>=6.3
+django-cors-headers>=4.3
+django-csp>=3.8
+django-ratelimit>=4.1
+
+# Async Tasks (needed for imports, Celery won't run without Redis)
+celery>=5.3
+django-celery-beat>=2.5
+django-celery-results>=2.5
+redis>=5.0
+
+# Cache (in-memory fallback, no Redis required)
+django-redis>=5.4
+
+# Reports
+openpyxl>=3.1
+
+# Image Processing
+Pillow>=10.2
+
+# Static Files
+whitenoise>=6.6
+
+# Utilities
+python-dateutil>=2.8
+pydantic>=2.5
+
+# Debug
+django-debug-toolbar>=4.2
+ipython>=8.20

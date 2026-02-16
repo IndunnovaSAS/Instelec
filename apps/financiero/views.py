@@ -11,7 +11,7 @@ from django.views.generic import DetailView, ListView, TemplateView
 
 from apps.core.mixins import HTMXMixin, RoleRequiredMixin
 
-from .models import CicloFacturacion, EjecucionCosto, Presupuesto
+from .models import ChecklistFacturacion, CicloFacturacion, EjecucionCosto, Presupuesto
 
 
 class DashboardFinancieroView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
@@ -169,6 +169,66 @@ class DashboardFinancieroView(LoginRequiredMixin, RoleRequiredMixin, TemplateVie
         context['total_presupuesto'] = total_presupuestado
         context['porcentaje_total'] = context['porcentaje_ejecutado']
         context['total_disponible'] = float(total_presupuestado - total_ejecutado)
+
+        # Budget alerts (Issue 7)
+        alertas = []
+        porcentaje = context['porcentaje_ejecutado']
+        if porcentaje > 100:
+            alertas.append({
+                'tipo': 'danger',
+                'icono': 'exclamation-triangle',
+                'titulo': 'Presupuesto excedido',
+                'mensaje': f'El ejecutado supera el presupuestado en {porcentaje - 100:.1f}%',
+                'color': 'red',
+            })
+        elif porcentaje > 80:
+            alertas.append({
+                'tipo': 'warning',
+                'icono': 'exclamation',
+                'titulo': 'Presupuesto en zona de alerta',
+                'mensaje': f'Se ha ejecutado el {porcentaje:.1f}% del presupuesto',
+                'color': 'yellow',
+            })
+
+        # Check facturacion esperada vs real
+        facturacion_esperada = context['facturacion_esperada'] or Decimal('0')
+        ciclos_facturados = CicloFacturacion.objects.filter(
+            presupuesto__anio=hoy.year,
+            presupuesto__mes=hoy.month,
+        )
+        facturacion_real = ciclos_facturados.aggregate(
+            total=Sum('monto_facturado')
+        )['total'] or Decimal('0')
+        context['facturacion_real'] = facturacion_real
+
+        if facturacion_esperada > 0:
+            pct_facturacion = float(facturacion_real / facturacion_esperada * 100)
+            context['porcentaje_facturacion'] = pct_facturacion
+            if pct_facturacion < 50:
+                alertas.append({
+                    'tipo': 'warning',
+                    'icono': 'currency-dollar',
+                    'titulo': 'Facturacion rezagada',
+                    'mensaje': f'Solo se ha facturado {pct_facturacion:.1f}% de lo esperado',
+                    'color': 'yellow',
+                })
+        else:
+            context['porcentaje_facturacion'] = 0
+
+        # Check individual line budgets
+        for pres in presupuestos.select_related('linea'):
+            if pres.total_presupuestado > 0:
+                pct = float(pres.total_ejecutado / pres.total_presupuestado * 100)
+                if pct > 100:
+                    alertas.append({
+                        'tipo': 'danger',
+                        'icono': 'exclamation-triangle',
+                        'titulo': f'{pres.linea.codigo} - Sobrecosto',
+                        'mensaje': f'Ejecutado {pct:.1f}% del presupuesto asignado',
+                        'color': 'red',
+                    })
+
+        context['alertas'] = alertas
 
         return context
 
@@ -556,3 +616,110 @@ class CostosVsProduccionAPIView(LoginRequiredMixin, RoleRequiredMixin, TemplateV
             'margen': float(margen_total),
             'estado': 'positivo' if desviacion_total >= 0 else 'negativo',
         })
+
+
+class ChecklistFacturacionView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, TemplateView):
+    """Checklist for tracking billing status of completed activities."""
+    template_name = 'financiero/checklist_facturacion.html'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def get_context_data(self, **kwargs):
+        from django.utils import timezone
+
+        from apps.actividades.models import Actividad
+        from apps.lineas.models import Linea
+
+        context = super().get_context_data(**kwargs)
+
+        hoy = timezone.now()
+        mes = int(self.request.GET.get('mes', hoy.month))
+        anio = int(self.request.GET.get('anio', hoy.year))
+        linea_id = self.request.GET.get('linea', '')
+
+        # Get completed activities for the selected month
+        qs = Actividad.objects.filter(
+            estado='COMPLETADA',
+            fecha_programada__year=anio,
+            fecha_programada__month=mes,
+        ).select_related('linea', 'tipo_actividad', 'cuadrilla')
+
+        if linea_id:
+            qs = qs.filter(linea_id=linea_id)
+
+        # Build checklist items (create if not exist)
+        items = []
+        total_facturado = 0
+        total_pendiente = 0
+        monto_total = Decimal('0')
+
+        for actividad in qs:
+            checklist, _ = ChecklistFacturacion.objects.get_or_create(
+                actividad=actividad,
+                defaults={'facturado': False}
+            )
+            monto = getattr(actividad, 'valor_facturacion', Decimal('0')) or Decimal('0')
+            monto_total += monto
+
+            if checklist.facturado:
+                total_facturado += 1
+            else:
+                total_pendiente += 1
+
+            items.append({
+                'actividad': actividad,
+                'checklist': checklist,
+                'monto': monto,
+            })
+
+        context['items'] = items
+        context['total_actividades'] = len(items)
+        context['total_facturado'] = total_facturado
+        context['total_pendiente'] = total_pendiente
+        context['monto_total'] = monto_total
+
+        # Filters
+        context['lineas'] = Linea.objects.filter(activa=True)
+        context['filtro_mes'] = mes
+        context['filtro_anio'] = anio
+        context['filtro_linea'] = linea_id
+        context['meses'] = [
+            (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+            (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+            (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
+        ]
+        context['anios'] = list(range(hoy.year - 1, hoy.year + 2))
+
+        return context
+
+
+class ToggleFacturadoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """Toggle billing status of a checklist item via HTMX."""
+    model = ChecklistFacturacion
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def post(self, request, *args, **kwargs):
+        from django.http import HttpResponse
+
+        checklist = self.get_object()
+        checklist.facturado = not checklist.facturado
+        if checklist.facturado:
+            checklist.fecha_facturacion = date.today()
+        else:
+            checklist.fecha_facturacion = None
+        checklist.save(update_fields=['facturado', 'fecha_facturacion', 'updated_at'])
+
+        if checklist.facturado:
+            html = (
+                f'<button hx-post="/financiero/checklist-facturacion/{checklist.pk}/toggle/" '
+                f'hx-target="closest .checklist-toggle" hx-swap="innerHTML" '
+                f'class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium hover:bg-green-200 transition">'
+                f'Facturado</button>'
+            )
+        else:
+            html = (
+                f'<button hx-post="/financiero/checklist-facturacion/{checklist.pk}/toggle/" '
+                f'hx-target="closest .checklist-toggle" hx-swap="innerHTML" '
+                f'class="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium hover:bg-red-200 transition">'
+                f'Pendiente</button>'
+            )
+        return HttpResponse(html)
