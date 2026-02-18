@@ -191,14 +191,109 @@ class CalendarioView(LoginRequiredMixin, TemplateView):
 
 
 class ProgramacionListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
-    """List monthly programming."""
-    model = ProgramacionMensual
+    """List monthly programming with activities filtered by month."""
+    model = Actividad
     template_name = 'actividades/programacion.html'
-    context_object_name = 'programaciones'
+    context_object_name = 'actividades'
+    paginate_by = 50
     allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente']
 
-    def get_queryset(self) -> QuerySet[ProgramacionMensual]:
-        return super().get_queryset().select_related('linea', 'aprobado_por')
+    def get_queryset(self) -> QuerySet[Actividad]:
+        qs = Actividad.objects.select_related(
+            'linea', 'torre', 'tipo_actividad', 'cuadrilla'
+        ).order_by('linea__codigo', 'tipo_actividad__nombre', 'torre__numero')
+
+        # Default to current month/year
+        hoy = date.today()
+        try:
+            self.selected_mes = int(self.request.GET.get('mes', hoy.month))
+        except (ValueError, TypeError):
+            self.selected_mes = hoy.month
+        try:
+            self.selected_anio = int(self.request.GET.get('anio', hoy.year))
+        except (ValueError, TypeError):
+            self.selected_anio = hoy.year
+
+        qs = qs.filter(
+            fecha_programada__month=self.selected_mes,
+            fecha_programada__year=self.selected_anio,
+        )
+
+        # Filter by linea
+        linea_id = self.request.GET.get('linea')
+        if linea_id:
+            try:
+                UUID(linea_id)
+                qs = qs.filter(linea_id=linea_id)
+            except ValueError:
+                pass
+
+        # Filter by tipo_actividad
+        tipo_id = self.request.GET.get('tipo_actividad')
+        if tipo_id:
+            try:
+                UUID(tipo_id)
+                qs = qs.filter(tipo_actividad_id=tipo_id)
+            except ValueError:
+                pass
+
+        # Filter by estado
+        estado = self.request.GET.get('estado')
+        if estado and estado in dict(Actividad.Estado.choices):
+            qs = qs.filter(estado=estado)
+
+        # Search by aviso SAP
+        buscar_aviso = self.request.GET.get('buscar_aviso', '').strip()
+        if buscar_aviso:
+            qs = qs.filter(aviso_sap__icontains=buscar_aviso)
+
+        self._filtered_qs = qs
+        return qs
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        from apps.lineas.models import Linea
+
+        context['lineas'] = Linea.objects.filter(activa=True)
+        context['tipos'] = TipoActividad.objects.filter(activo=True)
+        context['estados'] = Actividad.Estado.choices
+        context['meses'] = [
+            (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+            (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+            (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+        ]
+        context['anios'] = range(date.today().year - 1, date.today().year + 2)
+        context['selected_mes'] = self.selected_mes
+        context['selected_anio'] = self.selected_anio
+
+        # Get month name
+        nombres_mes = {
+            1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+            5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+            9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+        }
+        context['nombre_mes'] = nombres_mes.get(self.selected_mes, '')
+
+        # Stats
+        qs = getattr(self, '_filtered_qs', self.get_queryset())
+        stats = qs.aggregate(
+            total=Count('id'),
+            ejecutadas=Count('id', filter=Q(estado='COMPLETADA')),
+            pendientes=Count('id', filter=Q(estado__in=['PENDIENTE', 'PROGRAMADA'])),
+            en_curso=Count('id', filter=Q(estado='EN_CURSO')),
+        )
+        context['stats'] = stats
+        total = stats['total'] or 0
+        context['porcentaje_ejecucion'] = (
+            round((stats['ejecutadas'] / total) * 100, 1) if total > 0 else 0
+        )
+
+        # Programaciones for this month
+        context['programaciones'] = ProgramacionMensual.objects.filter(
+            mes=self.selected_mes, anio=self.selected_anio
+        ).select_related('linea')
+
+        return context
 
 
 class ImportarProgramacionView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
