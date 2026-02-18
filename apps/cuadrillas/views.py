@@ -1,6 +1,7 @@
 """
 Views for crew management.
 """
+from django.db import models
 from django.shortcuts import redirect
 from django.contrib import messages
 from django.views.generic import ListView, DetailView, TemplateView
@@ -565,6 +566,23 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
         viatico_checked = ' checked' if viatico_aplica else ''
         obs_escaped = observacion.replace('"', '&quot;')
 
+        # Calculate weekly total for OOB swap
+        from datetime import timedelta
+        semana, ano = CuadrillaDetailView._get_semana_from_codigo(cuadrilla.codigo)
+        if semana and ano:
+            lunes = date_cls.fromisocalendar(ano, semana, 1)
+        else:
+            hoy = date_cls.today()
+            lunes = hoy - timedelta(days=hoy.weekday())
+        dias_semana = [lunes + timedelta(days=i) for i in range(7)]
+
+        total_viaticos_semana = Asistencia.objects.filter(
+            usuario_id=usuario_id,
+            cuadrilla=cuadrilla,
+            fecha__in=dias_semana,
+        ).aggregate(total=models.Sum('viaticos'))['total'] or Decimal('0')
+        total_viaticos_fmt = int(total_viaticos_semana)
+
         html = (
             f'<select name="tipo_novedad" '
             f'hx-post="{request.path}" '
@@ -595,6 +613,12 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             f'<input type="hidden" name="fecha" value="{fecha_str}">'
             f'<input type="hidden" name="viaticos" value="{float(viaticos)}">'
             f'<input type="hidden" name="observacion" value="{obs_escaped}">'
+            # OOB swap: update the total viaticos cell for this user
+            f'<td id="total-viaticos-{usuario_id}" hx-swap-oob="true" '
+            f'class="px-3 py-2 text-center">'
+            f'<span class="text-sm font-bold text-green-600 dark:text-green-400">'
+            f'${total_viaticos_fmt}'
+            f'</span></td>'
         )
         return HttpResponse(html)
 
