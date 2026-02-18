@@ -522,12 +522,28 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
 
         tipos_validos = dict(Asistencia.TipoNovedad.choices)
 
-        if not tipo_novedad:
-            # Empty selection: remove attendance record
+        if not tipo_novedad and not viatico_aplica:
+            # Empty selection and no viatico: remove attendance record
             Asistencia.objects.filter(
                 usuario_id=usuario_id, cuadrilla=cuadrilla, fecha=fecha
             ).delete()
             viaticos = Decimal('0')
+        elif not tipo_novedad and viatico_aplica:
+            # No novedad but viatico checked: save with PRESENTE default
+            Asistencia.objects.update_or_create(
+                usuario_id=usuario_id,
+                cuadrilla=cuadrilla,
+                fecha=fecha,
+                defaults={
+                    'tipo_novedad': Asistencia.TipoNovedad.PRESENTE,
+                    'viaticos': viaticos,
+                    'horas_extra': horas_extra,
+                    'observacion': observacion,
+                    'viatico_aplica': viatico_aplica,
+                    'registrado_por': request.user,
+                }
+            )
+            tipo_novedad = 'PRESENTE'
         elif tipo_novedad in tipos_validos:
             Asistencia.objects.update_or_create(
                 usuario_id=usuario_id,
@@ -562,7 +578,7 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             sel = ' selected' if val == tipo_novedad else ''
             options_html += f'<option value="{val}"{sel}>{lbl}</option>'
 
-        horas_extra_display = float(horas_extra) if horas_extra else 0
+        horas_extra_display = float(horas_extra) if horas_extra else ''
         viatico_checked = ' checked' if viatico_aplica else ''
         obs_escaped = observacion.replace('"', '&quot;')
 
@@ -583,6 +599,22 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
         ).aggregate(total=models.Sum('viaticos'))['total'] or Decimal('0')
         total_viaticos_fmt = int(total_viaticos_semana)
 
+        # Build observation field (visible when not PRESENTE)
+        if tipo_novedad and tipo_novedad != 'PRESENTE':
+            obs_field = (
+                f'<input type="text" name="observacion" value="{obs_escaped}" '
+                f'placeholder="Motivo de ausencia..." '
+                f'hx-post="{request.path}" '
+                f'hx-target="closest .asistencia-cell" '
+                f'hx-swap="innerHTML" '
+                f'hx-include="closest .asistencia-cell" '
+                f'hx-trigger="change" '
+                f'class="mt-1 text-xs rounded border border-yellow-300 bg-yellow-50 px-1 py-0.5 w-full '
+                f'text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">'
+            )
+        else:
+            obs_field = f'<input type="hidden" name="observacion" value="{obs_escaped}">'
+
         html = (
             f'<select name="tipo_novedad" '
             f'hx-post="{request.path}" '
@@ -591,6 +623,7 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             f'hx-include="closest .asistencia-cell" '
             f'class="text-xs rounded border px-1 py-1 w-full cursor-pointer {css} dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">'
             f'{options_html}</select>'
+            f'{obs_field}'
             f'<div class="mt-1 flex items-center gap-1">'
             f'<input type="checkbox" name="viatico_aplica" {viatico_checked} '
             f'hx-post="{request.path}" '
@@ -606,19 +639,18 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             f'hx-swap="innerHTML" '
             f'hx-include="closest .asistencia-cell" '
             f'hx-trigger="change" '
-            f'class="mt-1 text-xs rounded border border-gray-200 px-1 py-0.5 w-full text-center '
-            f'text-orange-700 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300" '
-            f'placeholder="H.E.">'
+            f'class="mt-1 text-xs rounded border border-orange-200 bg-orange-50 px-1 py-0.5 w-full text-center '
+            f'text-orange-700 placeholder-orange-300 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300 '
+            f'dark:placeholder-orange-600" '
+            f'placeholder="Horas Extra">'
             f'<input type="hidden" name="usuario_id" value="{usuario_id}">'
             f'<input type="hidden" name="fecha" value="{fecha_str}">'
             f'<input type="hidden" name="viaticos" value="{float(viaticos)}">'
-            f'<input type="hidden" name="observacion" value="{obs_escaped}">'
-            # OOB swap: update the total viaticos cell for this user
-            f'<td id="total-viaticos-{usuario_id}" hx-swap-oob="true" '
-            f'class="px-3 py-2 text-center">'
-            f'<span class="text-sm font-bold text-green-600 dark:text-green-400">'
+            # OOB swap: update the total viaticos span for this user
+            f'<span id="total-viaticos-{usuario_id}" hx-swap-oob="true" '
+            f'class="text-sm font-bold text-green-600 dark:text-green-400">'
             f'${total_viaticos_fmt}'
-            f'</span></td>'
+            f'</span>'
         )
         return HttpResponse(html)
 

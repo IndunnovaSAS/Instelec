@@ -210,9 +210,10 @@
                 </select>
             </div>
             <div>
-                <label for="costo_dia" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo/Dia ($)</label>
-                <input type="number" name="costo_dia" id="costo_dia" step="100" min="0" value="0"
-                       class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm">
+                <label for="costo_dia_display" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Costo/Dia ($)</label>
+                <input type="text" id="costo_dia_display" readonly
+                       class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm bg-gray-50 dark:bg-gray-600">
+                <input type="hidden" name="costo_dia" id="costo_dia" value="0">
             </div>
             <div>
                 <button type="submit"
@@ -386,7 +387,6 @@
                             {% csrf_token %}
                             <input type="hidden" name="usuario_id" value="{{ fila.miembro.usuario_id }}">
                             <input type="hidden" name="fecha" value="{{ dia_info.fecha }}">
-                            <input type="hidden" name="observacion" value="{{ dia_info.observacion }}">
                             <input type="hidden" name="viaticos" value="{% if dia_info.viaticos %}{{ dia_info.viaticos|floatformat:0 }}{% else %}0{% endif %}">
                             <select name="tipo_novedad"
                                     hx-post="{% url 'cuadrillas:asistencia_update' cuadrilla.pk %}"
@@ -409,6 +409,19 @@
                                 <option value="{{ val }}" {% if dia_info.tipo_novedad == val %}selected{% endif %}>{{ lbl }}</option>
                                 {% endfor %}
                             </select>
+                            <!-- Observación (visible cuando no es Presente) -->
+                            {% if dia_info.tipo_novedad and dia_info.tipo_novedad != 'PRESENTE' %}
+                            <input type="text" name="observacion" value="{{ dia_info.observacion }}"
+                                   placeholder="Motivo de ausencia..."
+                                   hx-post="{% url 'cuadrillas:asistencia_update' cuadrilla.pk %}"
+                                   hx-target="closest .asistencia-cell"
+                                   hx-swap="innerHTML"
+                                   hx-include="closest .asistencia-cell"
+                                   hx-trigger="change"
+                                   class="mt-1 text-xs rounded border border-yellow-300 bg-yellow-50 px-1 py-0.5 w-full text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                            {% else %}
+                            <input type="hidden" name="observacion" value="{{ dia_info.observacion }}">
+                            {% endif %}
                             <!-- Viático Sí/No -->
                             <div class="mt-1 flex items-center gap-1">
                                 <input type="checkbox" name="viatico_aplica" {% if dia_info.viatico_aplica %}checked{% endif %}
@@ -421,19 +434,19 @@
                             </div>
                             <!-- Horas Extra -->
                             <input type="number" name="horas_extra"
-                                   value="{% if dia_info.horas_extra %}{{ dia_info.horas_extra }}{% else %}0{% endif %}"
+                                   value="{% if dia_info.horas_extra %}{{ dia_info.horas_extra }}{% endif %}"
                                    step="0.5" min="0"
                                    hx-post="{% url 'cuadrillas:asistencia_update' cuadrilla.pk %}"
                                    hx-target="closest .asistencia-cell"
                                    hx-swap="innerHTML"
                                    hx-include="closest .asistencia-cell"
                                    hx-trigger="change"
-                                   class="mt-1 text-xs rounded border border-gray-200 px-1 py-0.5 w-full text-center text-orange-700 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300"
-                                   placeholder="H.E.">
+                                   class="mt-1 text-xs rounded border border-orange-200 bg-orange-50 px-1 py-0.5 w-full text-center text-orange-700 placeholder-orange-300 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300 dark:placeholder-orange-600"
+                                   placeholder="Horas Extra">
                         </td>
                         {% endfor %}
-                        <td class="px-3 py-2 text-center" id="total-viaticos-{{ fila.miembro.usuario_id }}">
-                            <span class="text-sm font-bold text-green-600 dark:text-green-400">
+                        <td class="px-3 py-2 text-center">
+                            <span id="total-viaticos-{{ fila.miembro.usuario_id }}" class="text-sm font-bold text-green-600 dark:text-green-400">
                                 ${{ fila.total_viaticos|floatformat:0 }}
                             </span>
                         </td>
