@@ -1,0 +1,36 @@
+<div class="p-4 bg-gray-50 dark:bg-gray-750 space-y-4 border-t border-gray-200 dark:border-gray-600">
+    <!-- Activity details summary -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <h4 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actividad</h4>
+            <p class="text-sm text-gray-900 dark:text-white">{{ checklist.actividad.tipo_actividad.nombre|default:"-" }}</p>
+        </div>
+        <div>
+            <h4 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Cuadrilla</h4>
+            <p class="text-sm text-gray-900 dark:text-white">{{ checklist.actividad.cuadrilla.codigo|default:"-" }}</p>
+        </div>
+        <div>
+            <h4 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Estado Facturacion</h4>
+            <p class="text-sm {% if checklist.facturado %}text-green-600{% else %}text-red-600{% endif %}">
+                {% if checklist.facturado %}Facturado{% else %}Pendiente{% endif %}
+            </p>
+            {% if checklist.fecha_facturacion %}
+            <p class="text-xs text-gray-400">{{ checklist.fecha_facturacion|date:"d/m/Y" }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <h4 class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Aviso SAP</h4>
+            <p class="text-sm font-mono text-gray-900 dark:text-white">{{ checklist.actividad.aviso_sap|default:"-" }}</p>
+        </div>
+    </div>
+
+    <!-- Inline edit form -->
+    <div id="checklist-edit-{{ checklist.pk }}">
+        {% include "financiero/partials/checklist_edit_form.html" %}
+    </div>
+
+    <!-- File attachments -->
+    <div id="checklist-archivos-{{ checklist.pk }}">
+        {% include "financiero/partials/checklist_archivos.html" %}
+    </div>
+</div>

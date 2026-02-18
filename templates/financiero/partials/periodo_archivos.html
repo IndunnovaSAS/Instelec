@@ -1,0 +1,40 @@
+{% load humanize %}
+
+{% if archivos_periodo %}
+<div class="space-y-2">
+    {% for archivo in archivos_periodo %}
+    <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg p-2.5">
+        <div class="flex items-center gap-2 min-w-0">
+            <svg class="w-5 h-5 text-purple-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
+            </svg>
+            <div class="min-w-0">
+                <p class="text-sm text-gray-900 dark:text-white truncate">{{ archivo.nombre_original }}</p>
+                <div class="flex items-center gap-2 text-xs text-gray-400">
+                    <span>{{ archivo.tamanio|filesizeformat }}</span>
+                    {% if archivo.descripcion %}
+                    <span>-</span>
+                    <span>{{ archivo.descripcion }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+            <a href="{{ archivo.archivo.url }}" target="_blank"
+               class="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-xs font-medium">
+                Descargar
+            </a>
+            <button hx-delete="{% url 'financiero:periodo_eliminar_archivo' archivo.pk %}?linea={{ filtro_linea }}"
+                    hx-target="#periodo-archivos-list"
+                    hx-swap="innerHTML"
+                    hx-confirm="Eliminar este archivo del periodo?"
+                    class="text-red-600 hover:text-red-800 dark:text-red-400 text-xs font-medium">
+                Eliminar
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-gray-400 dark:text-gray-500 py-2">No hay archivos para este periodo</p>
+{% endif %}

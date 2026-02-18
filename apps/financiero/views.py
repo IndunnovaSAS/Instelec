@@ -11,7 +11,14 @@ from django.views.generic import DetailView, ListView, TemplateView
 
 from apps.core.mixins import HTMXMixin, RoleRequiredMixin
 
-from .models import ChecklistFacturacion, CicloFacturacion, EjecucionCosto, Presupuesto
+from .models import (
+    ArchivoChecklist,
+    ArchivoPeriodoFacturacion,
+    ChecklistFacturacion,
+    CicloFacturacion,
+    EjecucionCosto,
+    Presupuesto,
+)
 
 
 class DashboardFinancieroView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
@@ -677,6 +684,17 @@ class ChecklistFacturacionView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin,
         context['total_pendiente'] = total_pendiente
         context['monto_total'] = monto_total
 
+        # Period-level files
+        archivos_periodo_qs = ArchivoPeriodoFacturacion.objects.filter(
+            anio=anio, mes=mes
+        )
+        if linea_id:
+            archivos_periodo_qs = archivos_periodo_qs.filter(linea_id=linea_id)
+        context['archivos_periodo'] = archivos_periodo_qs
+
+        from .forms import ArchivoPeriodoForm
+        context['periodo_upload_form'] = ArchivoPeriodoForm()
+
         # Filters
         context['lineas'] = Linea.objects.filter(activa=True)
         context['filtro_mes'] = mes
@@ -723,3 +741,242 @@ class ToggleFacturadoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
                 f'Pendiente</button>'
             )
         return HttpResponse(html)
+
+
+class ChecklistDetallePartialView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """HTMX partial: expanded detail for a checklist item."""
+    model = ChecklistFacturacion
+    template_name = 'financiero/partials/checklist_detalle.html'
+    context_object_name = 'checklist'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def get_queryset(self):
+        return super().get_queryset().select_related(
+            'actividad__linea', 'actividad__tipo_actividad',
+            'actividad__cuadrilla',
+        ).prefetch_related('archivos')
+
+    def get_context_data(self, **kwargs):
+        from .forms import ArchivoChecklistForm, ChecklistEditForm
+
+        context = super().get_context_data(**kwargs)
+        context['edit_form'] = ChecklistEditForm(instance=self.object)
+        context['upload_form'] = ArchivoChecklistForm()
+        context['archivos'] = self.object.archivos.all()
+        return context
+
+
+class ChecklistEditarView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """Save numero_factura and observaciones via HTMX POST."""
+    model = ChecklistFacturacion
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def post(self, request, *args, **kwargs):
+        import json
+
+        from django.http import HttpResponse
+        from django.shortcuts import render
+
+        from .forms import ChecklistEditForm
+
+        checklist = self.get_object()
+        form = ChecklistEditForm(request.POST, instance=checklist)
+        if form.is_valid():
+            form.save()
+            response = HttpResponse()
+            response['HX-Trigger'] = json.dumps({
+                'showToast': {'message': 'Datos guardados', 'type': 'success'},
+            })
+            # Re-render the edit form with saved data
+            return render(request, 'financiero/partials/checklist_edit_form.html', {
+                'edit_form': ChecklistEditForm(instance=checklist),
+                'checklist': checklist,
+            }, headers={'HX-Trigger': json.dumps({
+                'showToast': {'message': 'Datos guardados', 'type': 'success'},
+            })})
+        return render(request, 'financiero/partials/checklist_edit_form.html', {
+            'edit_form': form, 'checklist': checklist,
+        })
+
+
+class ChecklistSubirArchivoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """Upload files to a checklist item via HTMX POST."""
+    model = ChecklistFacturacion
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    ALLOWED_EXTENSIONS = {'.pdf', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.webp'}
+    MAX_FILE_SIZE = 20 * 1024 * 1024  # 20 MB
+
+    def post(self, request, *args, **kwargs):
+        import json
+        import os
+
+        from django.http import HttpResponse
+        from django.template.loader import render_to_string
+
+        checklist = self.get_object()
+        files = request.FILES.getlist('archivos')
+
+        if not files:
+            response = HttpResponse(status=400)
+            response['HX-Trigger'] = json.dumps({
+                'showToast': {'message': 'No se seleccionaron archivos', 'type': 'error'},
+            })
+            return response
+
+        uploaded = 0
+        for f in files:
+            _, ext = os.path.splitext(f.name)
+            if ext.lower() not in self.ALLOWED_EXTENSIONS:
+                continue
+            if f.size > self.MAX_FILE_SIZE:
+                continue
+            ArchivoChecklist.objects.create(
+                checklist=checklist,
+                archivo=f,
+                nombre_original=f.name,
+                tipo_archivo=f.content_type or '',
+                tamanio=f.size,
+            )
+            uploaded += 1
+
+        archivos = checklist.archivos.all()
+        html = render_to_string('financiero/partials/checklist_archivos.html', {
+            'archivos': archivos, 'checklist': checklist,
+        }, request=request)
+
+        response = HttpResponse(html)
+        response['HX-Trigger'] = json.dumps({
+            'showToast': {'message': f'{uploaded} archivo(s) subido(s)', 'type': 'success'},
+        })
+        return response
+
+
+class ChecklistEliminarArchivoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """Delete a file from a checklist item via HTMX DELETE."""
+    model = ArchivoChecklist
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def delete(self, request, *args, **kwargs):
+        import json
+
+        from django.http import HttpResponse
+        from django.template.loader import render_to_string
+
+        archivo = self.get_object()
+        checklist = archivo.checklist
+        archivo.archivo.delete(save=False)
+        archivo.delete()
+
+        archivos = checklist.archivos.all()
+        html = render_to_string('financiero/partials/checklist_archivos.html', {
+            'archivos': archivos, 'checklist': checklist,
+        }, request=request)
+
+        response = HttpResponse(html)
+        response['HX-Trigger'] = json.dumps({
+            'showToast': {'message': 'Archivo eliminado', 'type': 'success'},
+        })
+        return response
+
+
+class PeriodoSubirArchivoView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
+    """Upload general files for a billing period."""
+    template_name = 'financiero/checklist_facturacion.html'
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    ALLOWED_EXTENSIONS = {'.pdf', '.xlsx', '.xls', '.jpg', '.jpeg', '.png', '.webp'}
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+    def post(self, request, *args, **kwargs):
+        import json
+        import os
+
+        from django.http import HttpResponse
+        from django.template.loader import render_to_string
+
+        mes = int(request.POST.get('mes', 0))
+        anio = int(request.POST.get('anio', 0))
+        linea_id = request.POST.get('linea') or None
+        descripcion = request.POST.get('descripcion', '')
+        files = request.FILES.getlist('archivos')
+
+        if not files or not mes or not anio:
+            response = HttpResponse(status=400)
+            response['HX-Trigger'] = json.dumps({
+                'showToast': {'message': 'Datos incompletos', 'type': 'error'},
+            })
+            return response
+
+        uploaded = 0
+        for f in files:
+            _, ext = os.path.splitext(f.name)
+            if ext.lower() not in self.ALLOWED_EXTENSIONS:
+                continue
+            if f.size > self.MAX_FILE_SIZE:
+                continue
+            ArchivoPeriodoFacturacion.objects.create(
+                anio=anio,
+                mes=mes,
+                linea_id=linea_id if linea_id else None,
+                archivo=f,
+                nombre_original=f.name,
+                descripcion=descripcion,
+                tipo_archivo=f.content_type or '',
+                tamanio=f.size,
+            )
+            uploaded += 1
+
+        archivos_periodo = ArchivoPeriodoFacturacion.objects.filter(
+            anio=anio, mes=mes
+        )
+        if linea_id:
+            archivos_periodo = archivos_periodo.filter(linea_id=linea_id)
+
+        html = render_to_string('financiero/partials/periodo_archivos.html', {
+            'archivos_periodo': archivos_periodo,
+            'filtro_mes': mes, 'filtro_anio': anio, 'filtro_linea': linea_id or '',
+        }, request=request)
+
+        response = HttpResponse(html)
+        response['HX-Trigger'] = json.dumps({
+            'showToast': {'message': f'{uploaded} archivo(s) del periodo subido(s)', 'type': 'success'},
+        })
+        return response
+
+
+class PeriodoEliminarArchivoView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
+    """Delete a period-level file via HTMX DELETE."""
+    model = ArchivoPeriodoFacturacion
+    allowed_roles = ['admin', 'director', 'coordinador']
+
+    def delete(self, request, *args, **kwargs):
+        import json
+
+        from django.http import HttpResponse
+        from django.template.loader import render_to_string
+
+        archivo = self.get_object()
+        mes = archivo.mes
+        anio = archivo.anio
+        linea_id = request.GET.get('linea', '')
+
+        archivo.archivo.delete(save=False)
+        archivo.delete()
+
+        archivos_periodo = ArchivoPeriodoFacturacion.objects.filter(
+            anio=anio, mes=mes
+        )
+        if linea_id:
+            archivos_periodo = archivos_periodo.filter(linea_id=linea_id)
+
+        html = render_to_string('financiero/partials/periodo_archivos.html', {
+            'archivos_periodo': archivos_periodo,
+            'filtro_mes': mes, 'filtro_anio': anio, 'filtro_linea': linea_id,
+        }, request=request)
+
+        response = HttpResponse(html)
+        response['HX-Trigger'] = json.dumps({
+            'showToast': {'message': 'Archivo del periodo eliminado', 'type': 'success'},
+        })
+        return response

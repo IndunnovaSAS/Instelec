@@ -409,6 +409,11 @@ class ChecklistFacturacion(BaseModel):
         null=True,
         blank=True
     )
+    numero_factura = models.CharField(
+        'Numero de factura',
+        max_length=50,
+        blank=True
+    )
     observaciones = models.TextField(
         'Observaciones',
         blank=True
@@ -427,3 +432,107 @@ class ChecklistFacturacion(BaseModel):
     def __str__(self):
         estado = 'Facturado' if self.facturado else 'Pendiente'
         return f"{self.actividad} - {estado}"
+
+
+class ArchivoChecklist(BaseModel):
+    """
+    File attachment for a checklist item (per activity).
+    """
+
+    checklist = models.ForeignKey(
+        ChecklistFacturacion,
+        on_delete=models.CASCADE,
+        related_name='archivos',
+        verbose_name='Checklist'
+    )
+    archivo = models.FileField(
+        'Archivo',
+        upload_to='facturacion/checklist/',
+    )
+    nombre_original = models.CharField(
+        'Nombre original',
+        max_length=255,
+    )
+    tipo_archivo = models.CharField(
+        'Tipo de archivo',
+        max_length=50,
+        blank=True,
+    )
+    tamanio = models.PositiveIntegerField(
+        'Tamano (bytes)',
+        default=0,
+    )
+
+    class Meta:
+        db_table = 'archivos_checklist'
+        verbose_name = 'Archivo de Checklist'
+        verbose_name_plural = 'Archivos de Checklist'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.nombre_original
+
+    @property
+    def extension(self):
+        import os
+        _, ext = os.path.splitext(self.nombre_original)
+        return ext.lower()
+
+    @property
+    def es_imagen(self):
+        return self.extension in ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+
+    @property
+    def es_pdf(self):
+        return self.extension == '.pdf'
+
+
+class ArchivoPeriodoFacturacion(BaseModel):
+    """
+    General file attachment for a billing period (month/year/linea).
+    """
+
+    anio = models.PositiveIntegerField('Ano')
+    mes = models.PositiveIntegerField('Mes')
+    linea = models.ForeignKey(
+        'lineas.Linea',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='archivos_facturacion',
+        verbose_name='Linea'
+    )
+    archivo = models.FileField(
+        'Archivo',
+        upload_to='facturacion/periodos/',
+    )
+    nombre_original = models.CharField(
+        'Nombre original',
+        max_length=255,
+    )
+    descripcion = models.CharField(
+        'Descripcion',
+        max_length=200,
+        blank=True,
+    )
+    tipo_archivo = models.CharField(
+        'Tipo de archivo',
+        max_length=50,
+        blank=True,
+    )
+    tamanio = models.PositiveIntegerField(
+        'Tamano (bytes)',
+        default=0,
+    )
+
+    class Meta:
+        db_table = 'archivos_periodo_facturacion'
+        verbose_name = 'Archivo de Periodo de Facturacion'
+        verbose_name_plural = 'Archivos de Periodo de Facturacion'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['anio', 'mes'], name='idx_archivo_periodo'),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre_original} ({self.mes}/{self.anio})"
