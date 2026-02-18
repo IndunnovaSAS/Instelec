@@ -202,7 +202,8 @@ class CuadrillaDetailView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Deta
                 info = usuario_asistencia.get(fecha_iso, {})
                 viaticos_val = info.get('viaticos', 0)
                 horas_extra_val = info.get('horas_extra', 0)
-                total_viaticos += Decimal(str(viaticos_val))
+                if info.get('viatico_aplica', False):
+                    total_viaticos += Decimal(str(viaticos_val))
                 total_horas_extra += Decimal(str(horas_extra_val))
                 dias.append({
                     'fecha': fecha_iso,
@@ -596,6 +597,7 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             usuario_id=usuario_id,
             cuadrilla=cuadrilla,
             fecha__in=dias_semana,
+            viatico_aplica=True,
         ).aggregate(total=models.Sum('viaticos'))['total'] or Decimal('0')
         total_viaticos_fmt = int(total_viaticos_semana)
 
