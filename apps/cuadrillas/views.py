@@ -515,8 +515,8 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             ).order_by('-vigencia_desde').first()
             if costo_viatico:
                 viaticos = costo_viatico.costo_unitario
-            elif viaticos == 0:
-                viaticos = Decimal('0')
+            else:
+                viaticos = Decimal('136941')
         elif not viaticos_str:
             viaticos = Decimal('0')
 
