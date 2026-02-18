@@ -517,7 +517,7 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
                 viaticos = costo_viatico.costo_unitario
             else:
                 viaticos = Decimal('136941')
-        elif not viaticos_str:
+        else:
             viaticos = Decimal('0')
 
         tipos_validos = dict(Asistencia.TipoNovedad.choices)
