@@ -482,11 +482,17 @@
         'ASISTENTE_FOREST': 4204000,
     };
 
+    function formatoPesos(valor) {
+        return '$ ' + Number(valor).toLocaleString('es-CO');
+    }
+
     function actualizarCostoDia() {
         const rol = document.getElementById('rol_cuadrilla').value;
-        const costoInput = document.getElementById('costo_dia');
+        const costoHidden = document.getElementById('costo_dia');
+        const costoDisplay = document.getElementById('costo_dia_display');
         if (COSTO_POR_ROL.hasOwnProperty(rol)) {
-            costoInput.value = COSTO_POR_ROL[rol];
+            costoHidden.value = COSTO_POR_ROL[rol];
+            costoDisplay.value = formatoPesos(COSTO_POR_ROL[rol]);
         }
     }
 
