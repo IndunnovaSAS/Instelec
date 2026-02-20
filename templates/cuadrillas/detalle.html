@@ -450,8 +450,8 @@
                                 syncAndSubmit() {
                                     this.$nextTick(() => {
                                         let cell = this.$el.closest('.asistencia-cell');
-                                        let url = cell.querySelector('[name=tipo_novedad]').getAttribute('hx-post');
-                                        htmx.ajax('POST', url, {source: cell, target: cell, swap: 'innerHTML'});
+                                        let select = cell.querySelector('[name=tipo_novedad]');
+                                        htmx.trigger(select, 'change');
                                     });
                                 }
                             }" class="mt-1">

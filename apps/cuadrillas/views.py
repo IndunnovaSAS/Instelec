@@ -668,7 +668,7 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             f'rows:[{rows_js}],'
             f'calcField(tipo){{return this.rows.filter(r=>r.tipo===tipo).reduce((s,r)=>s+(parseFloat(r.horas)||0),0)}},'
             f'totalHE(){{return this.rows.reduce((s,r)=>s+(parseFloat(r.horas)||0),0)}},'
-            f'syncAndSubmit(){{this.$nextTick(()=>{{let c=this.$el.closest(\'.asistencia-cell\');let u=c.querySelector(\'[name=tipo_novedad]\').getAttribute(\'hx-post\');htmx.ajax(\'POST\',u,{{source:c,target:c,swap:\'innerHTML\'}})}})}}'
+            f'syncAndSubmit(){{this.$nextTick(()=>{{let c=this.$el.closest(\'.asistencia-cell\');let s=c.querySelector(\'[name=tipo_novedad]\');htmx.trigger(s,\'change\')}})}}'
             f'}}" class="mt-1">'
             f'<div class="flex items-center gap-1">'
             f'<input type="checkbox" x-model="showHE" '
