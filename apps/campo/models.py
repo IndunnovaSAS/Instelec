@@ -351,3 +351,68 @@ class ReporteDano(BaseModel):
 
     def __str__(self):
         return f"Daño reportado por {self.usuario.get_full_name()} - {self.created_at.strftime('%d/%m/%Y %H:%M')}"
+
+
+class Procedimiento(BaseModel):
+    """
+    Informational procedure document uploaded for field teams.
+    """
+
+    titulo = models.CharField(
+        'Título',
+        max_length=200,
+    )
+    descripcion = models.TextField(
+        'Descripción',
+        blank=True,
+    )
+    archivo = models.FileField(
+        'Archivo',
+        upload_to='campo/procedimientos/',
+    )
+    nombre_original = models.CharField(
+        'Nombre original',
+        max_length=255,
+    )
+    tipo_archivo = models.CharField(
+        'Tipo de archivo',
+        max_length=50,
+        blank=True,
+    )
+    tamanio = models.PositiveIntegerField(
+        'Tamaño (bytes)',
+        default=0,
+    )
+    subido_por = models.ForeignKey(
+        'usuarios.Usuario',
+        on_delete=models.PROTECT,
+        related_name='procedimientos_campo',
+        verbose_name='Subido por'
+    )
+
+    class Meta:
+        db_table = 'procedimientos_campo'
+        verbose_name = 'Procedimiento'
+        verbose_name_plural = 'Procedimientos'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.titulo
+
+    @property
+    def extension(self):
+        import os
+        _, ext = os.path.splitext(self.nombre_original)
+        return ext.lower()
+
+    @property
+    def es_pdf(self):
+        return self.extension == '.pdf'
+
+    @property
+    def tamanio_legible(self):
+        if self.tamanio < 1024:
+            return f"{self.tamanio} B"
+        elif self.tamanio < 1024 * 1024:
+            return f"{self.tamanio / 1024:.1f} KB"
+        return f"{self.tamanio / (1024 * 1024):.1f} MB"

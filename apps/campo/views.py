@@ -9,7 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.utils import timezone
 from apps.core.mixins import HTMXMixin, RoleRequiredMixin
-from .models import RegistroCampo, Evidencia, ReporteDano
+from .models import RegistroCampo, Evidencia, ReporteDano, Procedimiento
 
 
 class RegistroListView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, ListView):
@@ -284,3 +284,60 @@ class ReporteDanoDetailView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
     template_name = 'campo/detalle_dano.html'
     context_object_name = 'reporte'
     allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor', 'liniero']
+
+
+class ProcedimientoListView(LoginRequiredMixin, RoleRequiredMixin, ListView):
+    """List uploaded procedure documents."""
+    model = Procedimiento
+    template_name = 'campo/procedimientos_lista.html'
+    context_object_name = 'procedimientos'
+    paginate_by = 20
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor', 'liniero']
+
+    def get_queryset(self) -> QuerySet[Procedimiento]:
+        return super().get_queryset().select_related('subido_por')
+
+
+class ProcedimientoCreateView(LoginRequiredMixin, RoleRequiredMixin, TemplateView):
+    """View for uploading a new procedure document."""
+    template_name = 'campo/procedimiento_crear.html'
+    allowed_roles = ['admin', 'director', 'coordinador', 'ing_residente', 'supervisor']
+
+    ALLOWED_EXTENSIONS = {'.pdf', '.xlsx', '.xls', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.webp'}
+    MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+
+    def post(self, request, *args, **kwargs):
+        import os
+        from django.http import HttpResponseRedirect
+
+        titulo = request.POST.get('titulo', '').strip()
+        descripcion = request.POST.get('descripcion', '').strip()
+        archivo = request.FILES.get('archivo')
+
+        if not titulo or not archivo:
+            context = self.get_context_data(**kwargs)
+            context['error'] = 'Debe ingresar un título y seleccionar un archivo.'
+            return self.render_to_response(context)
+
+        _, ext = os.path.splitext(archivo.name)
+        if ext.lower() not in self.ALLOWED_EXTENSIONS:
+            context = self.get_context_data(**kwargs)
+            context['error'] = f'Tipo de archivo no permitido: {ext}'
+            return self.render_to_response(context)
+
+        if archivo.size > self.MAX_FILE_SIZE:
+            context = self.get_context_data(**kwargs)
+            context['error'] = 'El archivo excede el tamaño máximo permitido (50 MB).'
+            return self.render_to_response(context)
+
+        Procedimiento.objects.create(
+            titulo=titulo,
+            descripcion=descripcion,
+            archivo=archivo,
+            nombre_original=archivo.name,
+            tipo_archivo=archivo.content_type or '',
+            tamanio=archivo.size,
+            subido_por=request.user,
+        )
+
+        return HttpResponseRedirect(reverse_lazy('campo:procedimientos'))

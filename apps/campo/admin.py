@@ -4,7 +4,7 @@ Admin configuration for field records.
 from django.contrib import admin
 from django.utils.html import format_html
 from apps.core.admin import BaseModelAdmin
-from .models import RegistroCampo, Evidencia, ReporteDano
+from .models import RegistroCampo, Evidencia, ReporteDano, Procedimiento
 
 
 class EvidenciaInline(admin.TabularInline):
@@ -108,3 +108,12 @@ class ReporteDanoAdmin(BaseModelAdmin):
             return obj.descripcion[:80] + '...'
         return obj.descripcion
     descripcion_corta.short_description = 'Descripción'
+
+
+@admin.register(Procedimiento)
+class ProcedimientoAdmin(BaseModelAdmin):
+    list_display = ('titulo', 'nombre_original', 'subido_por', 'tamanio', 'created_at')
+    list_filter = ('created_at',)
+    search_fields = ('titulo', 'descripcion', 'nombre_original', 'subido_por__email', 'subido_por__first_name')
+    raw_id_fields = ('subido_por',)
+    readonly_fields = ('nombre_original', 'tipo_archivo', 'tamanio')

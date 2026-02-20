@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Subir Procedimiento - TransMaint{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a href="{% url 'campo:procedimientos' %}" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Subir Procedimiento</h1>
+            <p class="text-gray-600 dark:text-gray-400">Cargue un documento de procedimiento para el equipo de campo</p>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+        {% csrf_token %}
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+                Información del Procedimiento
+            </h2>
+
+            <div>
+                <label for="titulo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Título <span class="text-red-500">*</span>
+                </label>
+                <input type="text" name="titulo" id="titulo" required maxlength="200"
+                       class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="Ej: Procedimiento de poda en zona de servidumbre">
+            </div>
+
+            <div>
+                <label for="descripcion" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Descripción
+                </label>
+                <textarea name="descripcion" id="descripcion" rows="4"
+                          class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Descripción opcional del procedimiento..."></textarea>
+            </div>
+
+            <div>
+                <label for="archivo" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Archivo <span class="text-red-500">*</span>
+                </label>
+                <input type="file" name="archivo" id="archivo" required
+                       accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                       class="w-full text-sm text-gray-500 dark:text-gray-400
+                              file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                              file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-300">
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Formatos permitidos: PDF, Excel, Word, imágenes. Máximo 50 MB.
+                </p>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="flex justify-end gap-3">
+            <a href="{% url 'campo:procedimientos' %}"
+               class="px-6 py-2 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+                Cancelar
+            </a>
+            <button type="submit"
+                    class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                </svg>
+                Subir Procedimiento
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
