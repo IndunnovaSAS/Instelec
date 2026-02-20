@@ -3,12 +3,17 @@
     <!-- Left: Toggle sidebar + Breadcrumb -->
     <div class="flex items-center space-x-4">
         <button @click="sidebarOpen = !sidebarOpen"
-                class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 lg:hidden"
+                class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                 aria-label="Alternar menu lateral"
-                aria-expanded="sidebarOpen"
+                :aria-expanded="sidebarOpen"
                 type="button">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <!-- Hamburger icon (sidebar closed) -->
+            <svg x-show="!sidebarOpen" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+            <!-- Close/collapse icon (sidebar open) -->
+            <svg x-show="sidebarOpen" x-cloak class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
             </svg>
         </button>
 

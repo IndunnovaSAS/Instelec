@@ -349,7 +349,39 @@ class Asistencia(BaseModel):
         decimal_places=1,
         default=0,
         blank=True,
-        help_text='Horas extra trabajadas en el día'
+        help_text='Total horas extra (auto-calculado)'
+    )
+    he_diurna = models.DecimalField(
+        'HE Diurna',
+        max_digits=4,
+        decimal_places=1,
+        default=0,
+        blank=True,
+        help_text='Horas extra diurnas'
+    )
+    he_nocturna = models.DecimalField(
+        'HE Nocturna',
+        max_digits=4,
+        decimal_places=1,
+        default=0,
+        blank=True,
+        help_text='Horas extra nocturnas'
+    )
+    he_dominical_diurna = models.DecimalField(
+        'HE Dom. Diurna',
+        max_digits=4,
+        decimal_places=1,
+        default=0,
+        blank=True,
+        help_text='Horas extra dominicales diurnas'
+    )
+    he_dominical_nocturna = models.DecimalField(
+        'HE Dom. Nocturna',
+        max_digits=4,
+        decimal_places=1,
+        default=0,
+        blank=True,
+        help_text='Horas extra dominicales nocturnas'
     )
     viatico_aplica = models.BooleanField(
         'Viático aplica',
@@ -376,8 +408,42 @@ class Asistencia(BaseModel):
             models.Index(fields=['tipo_novedad']),
         ]
 
+    JORNADA_POR_DIA = {
+        0: 8.0,   # Lunes
+        1: 7.5,   # Martes
+        2: 7.5,   # Miércoles
+        3: 7.5,   # Jueves
+        4: 7.5,   # Viernes
+        5: 6.0,   # Sábado
+        6: 0.0,   # Domingo
+    }
+
+    def save(self, *args, **kwargs):
+        detail_sum = (
+            (self.he_diurna or 0) +
+            (self.he_nocturna or 0) +
+            (self.he_dominical_diurna or 0) +
+            (self.he_dominical_nocturna or 0)
+        )
+        if detail_sum > 0 or not self.pk:
+            self.horas_extra = detail_sum
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.usuario.get_full_name()} - {self.fecha} - {self.get_tipo_novedad_display()}"
+
+    @property
+    def tiene_horas_extra(self):
+        return any([
+            self.he_diurna and self.he_diurna > 0,
+            self.he_nocturna and self.he_nocturna > 0,
+            self.he_dominical_diurna and self.he_dominical_diurna > 0,
+            self.he_dominical_nocturna and self.he_dominical_nocturna > 0,
+        ])
+
+    @property
+    def jornada_regular(self):
+        return self.JORNADA_POR_DIA.get(self.fecha.weekday(), 0)
 
     @property
     def esta_presente(self):

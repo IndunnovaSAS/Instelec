@@ -187,6 +187,10 @@ class CuadrillaDetailView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Deta
                 'horas_extra': float(a.horas_extra),
                 'observacion': a.observacion,
                 'viatico_aplica': a.viatico_aplica,
+                'he_diurna': float(a.he_diurna),
+                'he_nocturna': float(a.he_nocturna),
+                'he_dominical_diurna': float(a.he_dominical_diurna),
+                'he_dominical_nocturna': float(a.he_dominical_nocturna),
             }
 
         # Build template-friendly structure
@@ -213,6 +217,11 @@ class CuadrillaDetailView(LoginRequiredMixin, RoleRequiredMixin, HTMXMixin, Deta
                     'horas_extra': horas_extra_val,
                     'observacion': info.get('observacion', ''),
                     'viatico_aplica': info.get('viatico_aplica', False),
+                    'he_diurna': info.get('he_diurna', 0),
+                    'he_nocturna': info.get('he_nocturna', 0),
+                    'he_dominical_diurna': info.get('he_dominical_diurna', 0),
+                    'he_dominical_nocturna': info.get('he_dominical_nocturna', 0),
+                    'dia_semana': dia.weekday(),
                 })
             filas_asistencia.append({
                 'miembro': miembro,
@@ -502,11 +511,18 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
         except InvalidOperation:
             viaticos = Decimal('0')
 
-        # Parse horas_extra
-        try:
-            horas_extra = Decimal(horas_extra_str) if horas_extra_str else Decimal('0')
-        except InvalidOperation:
-            horas_extra = Decimal('0')
+        # Parse horas extra detalladas
+        def _parse_dec(s):
+            try:
+                return Decimal(s) if s else Decimal('0')
+            except InvalidOperation:
+                return Decimal('0')
+
+        he_diurna = _parse_dec(request.POST.get('he_diurna', '').strip())
+        he_nocturna = _parse_dec(request.POST.get('he_nocturna', '').strip())
+        he_dominical_diurna = _parse_dec(request.POST.get('he_dominical_diurna', '').strip())
+        he_dominical_nocturna = _parse_dec(request.POST.get('he_dominical_nocturna', '').strip())
+        horas_extra = he_diurna + he_nocturna + he_dominical_diurna + he_dominical_nocturna
 
         # If viatico_aplica, calculate viaticos from CostoRecurso
         if viatico_aplica:
@@ -539,6 +555,10 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
                     'tipo_novedad': Asistencia.TipoNovedad.PRESENTE,
                     'viaticos': viaticos,
                     'horas_extra': horas_extra,
+                    'he_diurna': he_diurna,
+                    'he_nocturna': he_nocturna,
+                    'he_dominical_diurna': he_dominical_diurna,
+                    'he_dominical_nocturna': he_dominical_nocturna,
                     'observacion': observacion,
                     'viatico_aplica': viatico_aplica,
                     'registrado_por': request.user,
@@ -554,6 +574,10 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
                     'tipo_novedad': tipo_novedad,
                     'viaticos': viaticos,
                     'horas_extra': horas_extra,
+                    'he_diurna': he_diurna,
+                    'he_nocturna': he_nocturna,
+                    'he_dominical_diurna': he_dominical_diurna,
+                    'he_dominical_nocturna': he_dominical_nocturna,
                     'observacion': observacion,
                     'viatico_aplica': viatico_aplica,
                     'registrado_por': request.user,
@@ -579,11 +603,10 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             sel = ' selected' if val == tipo_novedad else ''
             options_html += f'<option value="{val}"{sel}>{lbl}</option>'
 
-        horas_extra_display = float(horas_extra) if horas_extra else ''
         viatico_checked = ' checked' if viatico_aplica else ''
         obs_escaped = observacion.replace('"', '&quot;')
 
-        # Calculate weekly total for OOB swap
+        # Calculate weekly totals for OOB swap
         from datetime import timedelta
         semana, ano = CuadrillaDetailView._get_semana_from_codigo(cuadrilla.codigo)
         if semana and ano:
@@ -593,13 +616,16 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             lunes = hoy - timedelta(days=hoy.weekday())
         dias_semana = [lunes + timedelta(days=i) for i in range(7)]
 
-        total_viaticos_semana = Asistencia.objects.filter(
+        totals = Asistencia.objects.filter(
             usuario_id=usuario_id,
             cuadrilla=cuadrilla,
             fecha__in=dias_semana,
-            viatico_aplica=True,
-        ).aggregate(total=models.Sum('viaticos'))['total'] or Decimal('0')
-        total_viaticos_fmt = int(total_viaticos_semana)
+        ).aggregate(
+            total_viaticos=models.Sum('viaticos', filter=models.Q(viatico_aplica=True)),
+            total_he=models.Sum('horas_extra'),
+        )
+        total_viaticos_fmt = int(totals['total_viaticos'] or 0)
+        total_he_fmt = float(totals['total_he'] or 0)
 
         # Build observation field (visible when not PRESENTE)
         if tipo_novedad and tipo_novedad != 'PRESENTE':
@@ -616,6 +642,73 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             )
         else:
             obs_field = f'<input type="hidden" name="observacion" value="{obs_escaped}">'
+
+        # Build Alpine.js overtime section
+        JORNADA = {0: 8.0, 1: 7.5, 2: 7.5, 3: 7.5, 4: 7.5, 5: 6.0, 6: 0.0}
+        jornada = JORNADA.get(fecha.weekday(), 0)
+
+        he_vals = {
+            'he_diurna': float(he_diurna),
+            'he_nocturna': float(he_nocturna),
+            'he_dominical_diurna': float(he_dominical_diurna),
+            'he_dominical_nocturna': float(he_dominical_nocturna),
+        }
+        tiene_he = any(v > 0 for v in he_vals.values())
+
+        # Build initial rows for Alpine
+        initial_rows = []
+        for field_name, val in he_vals.items():
+            if val > 0:
+                initial_rows.append(f"{{tipo:'{field_name}',horas:{val}}}")
+        rows_js = ','.join(initial_rows) if initial_rows else ""
+
+        he_section = (
+            f'<div x-data="{{'
+            f'showHE:{str(tiene_he).lower()},'
+            f'rows:[{rows_js}],'
+            f'calcField(tipo){{return this.rows.filter(r=>r.tipo===tipo).reduce((s,r)=>s+(parseFloat(r.horas)||0),0)}},'
+            f'totalHE(){{return this.rows.reduce((s,r)=>s+(parseFloat(r.horas)||0),0)}},'
+            f'syncAndSubmit(){{this.$nextTick(()=>{{let c=this.$el.closest(\'.asistencia-cell\');let u=c.querySelector(\'[name=tipo_novedad]\').getAttribute(\'hx-post\');htmx.ajax(\'POST\',u,{{source:c,target:c,swap:\'innerHTML\'}})}})}}'
+            f'}}" class="mt-1">'
+            f'<div class="flex items-center gap-1">'
+            f'<input type="checkbox" x-model="showHE" '
+            f'@change="if(showHE&&rows.length===0)rows.push({{tipo:\'he_diurna\',horas:0}});if(!showHE){{rows=[];syncAndSubmit()}}" '
+            f'class="rounded border-gray-300 text-orange-600 cursor-pointer">'
+            f'<span class="text-xs text-gray-500">HE</span>'
+            f'<span class="text-[10px] text-orange-400">({jornada}h)</span>'
+            f'</div>'
+            f'<div x-show="showHE" x-collapse class="mt-1 space-y-1">'
+            f'<template x-for="(row,idx) in rows" :key="idx">'
+            f'<div class="flex items-center gap-0.5">'
+            f'<select x-model="row.tipo" '
+            f'class="text-[10px] rounded border border-orange-200 bg-orange-50 px-0.5 py-0.5 flex-1 '
+            f'dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300">'
+            f'<option value="he_diurna">Diurna</option>'
+            f'<option value="he_nocturna">Nocturna</option>'
+            f'<option value="he_dominical_diurna">Dom.D</option>'
+            f'<option value="he_dominical_nocturna">Dom.N</option>'
+            f'</select>'
+            f'<input type="number" x-model.number="row.horas" step="0.5" min="0" max="16" '
+            f'@change="syncAndSubmit()" '
+            f'class="text-[10px] rounded border border-orange-200 bg-orange-50 px-0.5 py-0.5 w-[35px] '
+            f'text-center text-orange-700 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300">'
+            f'<button type="button" '
+            f'@click="rows.splice(idx,1);if(rows.length===0)showHE=false;syncAndSubmit()" '
+            f'class="text-red-400 hover:text-red-600 text-xs leading-none">&times;</button>'
+            f'</div>'
+            f'</template>'
+            f'<button type="button" '
+            f'@click="if(rows.length<4)rows.push({{tipo:\'he_diurna\',horas:0}})" '
+            f'x-show="rows.length<4" '
+            f'class="text-[10px] text-orange-500 hover:text-orange-700 cursor-pointer">+ Agregar</button>'
+            f'</div>'
+            f'<input type="hidden" name="he_diurna" :value="calcField(\'he_diurna\')">'
+            f'<input type="hidden" name="he_nocturna" :value="calcField(\'he_nocturna\')">'
+            f'<input type="hidden" name="he_dominical_diurna" :value="calcField(\'he_dominical_diurna\')">'
+            f'<input type="hidden" name="he_dominical_nocturna" :value="calcField(\'he_dominical_nocturna\')">'
+            f'<input type="hidden" name="horas_extra" :value="totalHE()">'
+            f'</div>'
+        )
 
         html = (
             f'<select name="tipo_novedad" '
@@ -635,16 +728,7 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             f'class="rounded border-gray-300 text-green-600 cursor-pointer">'
             f'<span class="text-xs text-gray-500">V</span>'
             f'</div>'
-            f'<input type="number" name="horas_extra" value="{horas_extra_display}" step="0.5" min="0" '
-            f'hx-post="{request.path}" '
-            f'hx-target="closest .asistencia-cell" '
-            f'hx-swap="innerHTML" '
-            f'hx-include="closest .asistencia-cell" '
-            f'hx-trigger="change" '
-            f'class="mt-1 text-xs rounded border border-orange-200 bg-orange-50 px-1 py-0.5 w-full text-center '
-            f'text-orange-700 placeholder-orange-300 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300 '
-            f'dark:placeholder-orange-600" '
-            f'placeholder="Horas Extra">'
+            f'{he_section}'
             f'<input type="hidden" name="usuario_id" value="{usuario_id}">'
             f'<input type="hidden" name="fecha" value="{fecha_str}">'
             f'<input type="hidden" name="viaticos" value="{float(viaticos)}">'
@@ -655,7 +739,11 @@ class AsistenciaUpdateView(LoginRequiredMixin, RoleRequiredMixin, DetailView):
             'updateTotalViaticos': {
                 'usuario_id': str(usuario_id),
                 'total': total_viaticos_fmt,
-            }
+            },
+            'updateTotalHorasExtra': {
+                'usuario_id': str(usuario_id),
+                'total': total_he_fmt,
+            },
         })
         return response
 
@@ -741,10 +829,10 @@ class ExportarAsistenciaView(LoginRequiredMixin, RoleRequiredMixin, View):
         center = Alignment(horizontal='center', vertical='center')
 
         # Title row
-        ws.merge_cells('A1:L1')
+        ws.merge_cells('A1:R1')
         ws['A1'] = f'Asistencia Semanal - {cuadrilla.codigo} - {cuadrilla.nombre}'
         ws['A1'].font = Font(bold=True, size=14)
-        ws.merge_cells('A2:L2')
+        ws.merge_cells('A2:R2')
         ws['A2'] = f'Semana: {dias_semana[0].strftime("%d/%m/%Y")} - {dias_semana[6].strftime("%d/%m/%Y")}'
         ws['A2'].font = Font(size=11)
 
@@ -752,7 +840,11 @@ class ExportarAsistenciaView(LoginRequiredMixin, RoleRequiredMixin, View):
         headers = ['Nombre', 'Documento', 'Cargo', 'Rol']
         for dia, nombre in zip(dias_semana, dias_nombres):
             headers.append(f'{nombre} {dia.strftime("%d/%m")}')
-        headers.extend(['Total Viaticos', 'H. Extra', 'Observaciones'])
+        headers.extend([
+            'Total Viaticos', 'H. Extra Total',
+            'HE Diurna', 'HE Nocturna', 'HE Dom.D', 'HE Dom.N',
+            'Observaciones',
+        ])
 
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=4, column=col, value=header)
@@ -775,6 +867,10 @@ class ExportarAsistenciaView(LoginRequiredMixin, RoleRequiredMixin, View):
 
             total_viaticos = Decimal('0')
             total_horas_extra = Decimal('0')
+            total_he_diurna = Decimal('0')
+            total_he_nocturna = Decimal('0')
+            total_he_dom_diurna = Decimal('0')
+            total_he_dom_nocturna = Decimal('0')
             observaciones_semana = []
 
             for i, dia in enumerate(dias_semana):
@@ -786,6 +882,10 @@ class ExportarAsistenciaView(LoginRequiredMixin, RoleRequiredMixin, View):
                     cell.border = thin_border
                     total_viaticos += asist.viaticos
                     total_horas_extra += asist.horas_extra
+                    total_he_diurna += asist.he_diurna
+                    total_he_nocturna += asist.he_nocturna
+                    total_he_dom_diurna += asist.he_dominical_diurna
+                    total_he_dom_nocturna += asist.he_dominical_nocturna
                     if asist.observacion:
                         observaciones_semana.append(f'{dias_nombres[i]}: {asist.observacion}')
 
@@ -818,7 +918,14 @@ class ExportarAsistenciaView(LoginRequiredMixin, RoleRequiredMixin, View):
             cell_h.alignment = center
             cell_h.border = thin_border
 
-            ws.cell(row=row, column=14, value='; '.join(observaciones_semana)).border = thin_border
+            # Detailed overtime columns
+            for col_offset, val in enumerate([total_he_diurna, total_he_nocturna, total_he_dom_diurna, total_he_dom_nocturna]):
+                c = ws.cell(row=row, column=14 + col_offset, value=float(val))
+                c.number_format = '0.0'
+                c.alignment = center
+                c.border = thin_border
+
+            ws.cell(row=row, column=18, value='; '.join(observaciones_semana)).border = thin_border
 
             row += 1
 

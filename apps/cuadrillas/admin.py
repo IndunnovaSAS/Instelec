@@ -60,7 +60,8 @@ class TrackingUbicacionAdmin(admin.ModelAdmin):
 
 @admin.register(Asistencia)
 class AsistenciaAdmin(BaseModelAdmin):
-    list_display = ('usuario', 'cuadrilla', 'fecha', 'tipo_novedad', 'hora_entrada', 'hora_salida', 'horas_trabajadas')
+    list_display = ('usuario', 'cuadrilla', 'fecha', 'tipo_novedad', 'horas_extra',
+                    'he_diurna', 'he_nocturna', 'he_dominical_diurna', 'he_dominical_nocturna')
     list_filter = ('tipo_novedad', 'cuadrilla', 'fecha')
     search_fields = ('usuario__first_name', 'usuario__last_name', 'cuadrilla__codigo')
     raw_id_fields = ('usuario', 'cuadrilla', 'registrado_por')
@@ -73,6 +74,11 @@ class AsistenciaAdmin(BaseModelAdmin):
         ('Novedad', {
             'fields': ('tipo_novedad', 'observacion')
         }),
+        ('Horas Extra', {
+            'fields': ('horas_extra', 'he_diurna', 'he_nocturna',
+                       'he_dominical_diurna', 'he_dominical_nocturna'),
+            'description': 'horas_extra se calcula automaticamente como la suma de los 4 tipos.'
+        }),
         ('Horario', {
             'fields': ('hora_entrada', 'hora_salida')
         }),
@@ -84,4 +90,4 @@ class AsistenciaAdmin(BaseModelAdmin):
             'classes': ('collapse',)
         }),
     )
-    readonly_fields = ('id', 'created_at', 'updated_at')
+    readonly_fields = ('id', 'created_at', 'updated_at', 'horas_extra')

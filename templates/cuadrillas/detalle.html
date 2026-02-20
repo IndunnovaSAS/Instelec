@@ -433,16 +433,68 @@
                                 <span class="text-xs text-gray-500 dark:text-gray-400">V</span>
                             </div>
                             <!-- Horas Extra -->
-                            <input type="number" name="horas_extra"
-                                   value="{% if dia_info.horas_extra %}{{ dia_info.horas_extra }}{% endif %}"
-                                   step="0.5" min="0"
-                                   hx-post="{% url 'cuadrillas:asistencia_update' cuadrilla.pk %}"
-                                   hx-target="closest .asistencia-cell"
-                                   hx-swap="innerHTML"
-                                   hx-include="closest .asistencia-cell"
-                                   hx-trigger="change"
-                                   class="mt-1 text-xs rounded border border-orange-200 bg-orange-50 px-1 py-0.5 w-full text-center text-orange-700 placeholder-orange-300 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300 dark:placeholder-orange-600"
-                                   placeholder="Horas Extra">
+                            <div x-data="{
+                                showHE: {% if dia_info.he_diurna or dia_info.he_nocturna or dia_info.he_dominical_diurna or dia_info.he_dominical_nocturna %}true{% else %}false{% endif %},
+                                rows: [
+                                    {% if dia_info.he_diurna %}{ tipo: 'he_diurna', horas: {{ dia_info.he_diurna }} },{% endif %}
+                                    {% if dia_info.he_nocturna %}{ tipo: 'he_nocturna', horas: {{ dia_info.he_nocturna }} },{% endif %}
+                                    {% if dia_info.he_dominical_diurna %}{ tipo: 'he_dominical_diurna', horas: {{ dia_info.he_dominical_diurna }} },{% endif %}
+                                    {% if dia_info.he_dominical_nocturna %}{ tipo: 'he_dominical_nocturna', horas: {{ dia_info.he_dominical_nocturna }} },{% endif %}
+                                ],
+                                calcField(tipo) {
+                                    return this.rows.filter(r => r.tipo === tipo).reduce((s, r) => s + (parseFloat(r.horas) || 0), 0);
+                                },
+                                totalHE() {
+                                    return this.rows.reduce((s, r) => s + (parseFloat(r.horas) || 0), 0);
+                                },
+                                syncAndSubmit() {
+                                    this.$nextTick(() => {
+                                        let cell = this.$el.closest('.asistencia-cell');
+                                        let url = cell.querySelector('[name=tipo_novedad]').getAttribute('hx-post');
+                                        htmx.ajax('POST', url, {source: cell, target: cell, swap: 'innerHTML'});
+                                    });
+                                }
+                            }" class="mt-1">
+                                <div class="flex items-center gap-1">
+                                    <input type="checkbox" x-model="showHE"
+                                           @change="if(showHE && rows.length === 0) rows.push({tipo:'he_diurna', horas:0}); if(!showHE) { rows=[]; syncAndSubmit(); }"
+                                           class="rounded border-gray-300 text-orange-600 cursor-pointer">
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">HE</span>
+                                    <span class="text-[10px] text-orange-400">
+                                        ({% if dia_info.dia_semana == 0 %}8h{% elif dia_info.dia_semana == 5 %}6h{% elif dia_info.dia_semana == 6 %}0h{% else %}7.5h{% endif %})
+                                    </span>
+                                </div>
+                                <div x-show="showHE" x-collapse class="mt-1 space-y-1">
+                                    <template x-for="(row, idx) in rows" :key="idx">
+                                        <div class="flex items-center gap-0.5">
+                                            <select x-model="row.tipo"
+                                                class="text-[10px] rounded border border-orange-200 bg-orange-50 px-0.5 py-0.5 flex-1
+                                                       dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300">
+                                                <option value="he_diurna">Diurna</option>
+                                                <option value="he_nocturna">Nocturna</option>
+                                                <option value="he_dominical_diurna">Dom.D</option>
+                                                <option value="he_dominical_nocturna">Dom.N</option>
+                                            </select>
+                                            <input type="number" x-model.number="row.horas" step="0.5" min="0" max="16"
+                                                @change="syncAndSubmit()"
+                                                class="text-[10px] rounded border border-orange-200 bg-orange-50 px-0.5 py-0.5 w-[35px]
+                                                       text-center text-orange-700 dark:bg-gray-700 dark:border-gray-600 dark:text-orange-300">
+                                            <button type="button"
+                                                @click="rows.splice(idx, 1); if(rows.length===0) showHE=false; syncAndSubmit()"
+                                                class="text-red-400 hover:text-red-600 text-xs leading-none">&times;</button>
+                                        </div>
+                                    </template>
+                                    <button type="button"
+                                        @click="if(rows.length<4) rows.push({tipo:'he_diurna', horas:0})"
+                                        x-show="rows.length < 4"
+                                        class="text-[10px] text-orange-500 hover:text-orange-700 cursor-pointer">+ Agregar</button>
+                                </div>
+                                <input type="hidden" name="he_diurna" :value="calcField('he_diurna')">
+                                <input type="hidden" name="he_nocturna" :value="calcField('he_nocturna')">
+                                <input type="hidden" name="he_dominical_diurna" :value="calcField('he_dominical_diurna')">
+                                <input type="hidden" name="he_dominical_nocturna" :value="calcField('he_dominical_nocturna')">
+                                <input type="hidden" name="horas_extra" :value="totalHE()">
+                            </div>
                         </td>
                         {% endfor %}
                         <td class="px-3 py-2 text-center">
@@ -451,7 +503,7 @@
                             </span>
                         </td>
                         <td class="px-3 py-2 text-center">
-                            <span class="text-sm font-bold text-orange-600 dark:text-orange-400">
+                            <span id="total-he-{{ fila.miembro.usuario_id }}" class="text-sm font-bold text-orange-600 dark:text-orange-400">
                                 {{ fila.total_horas_extra|floatformat:1 }}h
                             </span>
                         </td>
@@ -505,6 +557,22 @@
         const span = document.getElementById('total-viaticos-' + data.usuario_id);
         if (span) {
             span.textContent = '$' + Number(data.total).toLocaleString('es-CO');
+        }
+    });
+
+    // Update total horas extra when HTMX triggers the event
+    document.body.addEventListener('updateTotalHorasExtra', function(evt) {
+        const data = evt.detail;
+        const span = document.getElementById('total-he-' + data.usuario_id);
+        if (span) {
+            span.textContent = Number(data.total).toFixed(1) + 'h';
+        }
+    });
+
+    // Reinitialize Alpine.js on HTMX content swaps
+    document.body.addEventListener('htmx:afterSettle', function(event) {
+        if (window.Alpine) {
+            Alpine.initTree(event.detail.target);
         }
     });
 </script>
